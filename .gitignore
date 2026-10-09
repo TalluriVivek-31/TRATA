@@ -1,0 +1,12 @@
+.env
+config.json
+__pycache__/
+*.pyc
+.system_generated/
+*.log
+node_modules/
+MOSDAC Data Download/
+data/mosdac_downloads/
+*.h5
+*.part
+

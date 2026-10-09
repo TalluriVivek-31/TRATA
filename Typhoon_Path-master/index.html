@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYCLONEX — Atmospheric Cyclone Intelligence & Detection</title>
+  <meta name="description" content="Editorial climate-intelligence platform for tropical cyclone detection, spatiotemporal track prediction, and atmospheric vortex analysis.">
+
+  <!-- Google Fonts: Anton & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet GIS Mapping Engine (Dark CartoDB Ocean) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- CYCLONEX Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Physical Atmospheric Fractal Noise Texture (Fixed 4% opacity) -->
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <!-- FIXED NAVIGATION BAR -->
+  <header class="nav-header" role="banner">
+    <a href="#" class="nav-logo" aria-label="CYCLONEX Homepage">
+      <span class="dash">—</span> CYCLONEX
+    </a>
+
+    <!-- Center Translucent Pill (20px blur) -->
+    <nav class="nav-pill" role="navigation" aria-label="Primary Navigation">
+      <a href="#detection" class="nav-link">DETECTION</a>
+      <a href="#intelligence" class="nav-link">INTELLIGENCE</a>
+      <a href="#system" class="nav-link">SYSTEM</a>
+    </nav>
+
+    <!-- Right Live Status -->
+    <div class="nav-status" aria-live="polite">
+      <span class="nav-status__dot"></span>
+      <span class="nav-status__text">SYSTEM LIVE</span>
+    </div>
+  </header>
+
+  <!-- FLOATING STORM & DATASET CONTROLLER BAR -->
+  <div class="storm-selector-bar" role="region" aria-label="Cyclone Dataset Selector">
+    <span class="label">MONITORING ARCHIVE:</span>
+    <select id="stormSelect" class="storm-select" aria-label="Select Cyclone Dataset or Live Observation">
+      <!-- Dynamically populated by app.js -->
+    </select>
+    <span id="stormBadge" class="storm-badge">AUTHORITATIVE METEOROLOGICAL RECORD</span>
+  </div>
+
+  <main>
+    <!-- =======================================================================
+         HERO SECTION
+         ======================================================================= -->
+    <section class="hero-section" id="hero" aria-label="Cyclone Monitoring Hero">
+      
+      <!-- Abstract Scientific Radar Background Canvas -->
+      <div class="hero-radar-container" aria-hidden="true">
+        <canvas id="heroRadarCanvas"></canvas>
+      </div>
+
+      <!-- Floating Scientific Information Cards Layer -->
+      <div class="floating-cards-layer" aria-label="Key Cyclone Telemetry">
+        <!-- Floating Card 1: Wind Speed -->
+        <article class="floating-info-card floating-card--wind">
+          <span class="card-label">WIND SPEED</span>
+          <div class="card-value" id="heroWindVal">234</div>
+          <span class="card-unit" id="heroWindUnit">KM/H</span>
+        </article>
+
+        <!-- Floating Card 2: Core Pressure -->
+        <article class="floating-info-card floating-card--pressure">
+          <span class="card-label">CORE PRESSURE</span>
+          <div class="card-value" id="heroPressureVal">910</div>
+          <span class="card-unit">HPA</span>
+        </article>
+
+        <!-- Floating Card 3: Movement -->
+        <article class="floating-info-card floating-card--movement">
+          <span class="card-label">MOVEMENT</span>
+          <div class="card-value" id="heroMoveVal">WNW</div>
+          <span class="card-unit" id="heroMoveSub">24 KM/H</span>
+        </article>
+
+        <!-- Floating Card 4: Verified Provenance -->
+        <article class="floating-info-card floating-card--source">
+          <span class="card-label">TRACK SOURCE</span>
+          <div class="card-value" id="heroSourceVal" style="font-size: 1.8rem; line-height: 1;">MANGKHUT</div>
+          <span class="card-unit" id="heroSourceSub">CMA BEST TRACK #1822</span>
+        </article>
+      </div>
+
+      <!-- Hero Enormous Typography: Anton ~23vw -->
+      <div class="hero-typography-wrapper">
+        <h1 class="hero-heading" id="heroHeading">CYCLONE</h1>
+      </div>
+
+      <!-- Hero Bottom Two-Column Metadata Area -->
+      <div class="hero-metadata" role="contentinfo">
+        <div class="hero-meta-col left">
+          <span class="hero-meta-title">ACTIVE CYCLONE / TRACK MONITORING</span>
+          <span class="hero-meta-subtitle" id="heroMetaActiveStorm">SUPER TYPHOON MANGKHUT (2018)</span>
+          <span class="utility-label utility-label--muted" id="heroMetaCoords">20.2°N, 113.8°E • INTENSITY GRADE VI</span>
+        </div>
+        <div class="hero-meta-col right">
+          <span class="hero-meta-title">SATELLITE / RADAR / ATMOSPHERIC DATA</span>
+          <span class="hero-meta-subtitle" id="heroMetaBasin">WESTERN NORTH PACIFIC BASIN</span>
+          <span class="utility-label utility-label--accent" id="heroMetaSensor">CMA & RSMC VERIFIED SPATIOTEMPORAL ARCHIVE</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SECTION 2: DETECTION
+         ======================================================================= -->
+    <section class="editorial-section reveal-init" id="detection" aria-labelledby="headingDetection">
+      <div class="section-headline-container">
+        <span class="utility-label utility-label--accent">VORTEX KINEMATICS & OBSERVATION MATRIX</span>
+        <div class="heading-with-cta">
+          <h2 class="section-editorial-heading" id="headingDetection">
+            READ<br>THE<br>STORM
+          </h2>
+          <!-- Elegant Minimal Circular CTA -->
+          <a href="#intelligence" class="editorial-circle-cta" aria-label="Explore Cyclone Intelligence Matrix">
+            <span class="action">ANALYZE</span>
+            <span class="label">INTELLIGENCE</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Three Large Visual Intelligence Panels -->
+      <div class="panels-grid">
+        
+        <!-- PANEL 1: WIND FIELD -->
+        <article class="intel-panel" aria-labelledby="titlePanelWind">
+          <div class="panel-header">
+            <div>
+              <span class="utility-label">KINEMATIC STREAMLINES</span>
+              <h3 class="panel-title" id="titlePanelWind">WIND FIELD</h3>
+            </div>
+            <span class="utility-label utility-label--accent">VECTOR SIM</span>
+          </div>
+
+          <!-- Animated Wind Streamline Canvas -->
+          <div class="panel-visual-area">
+            <canvas id="windFieldCanvas"></canvas>
+          </div>
+
+          <div class="panel-footer-meta">
+            <div class="meta-group">
+              <span class="meta-sub">MAX SUSTAINED WIND</span>
+              <span class="meta-number" id="p1MaxWind">234 KM/H</span>
+            </div>
+            <div class="meta-group" style="text-align: right;">
+              <span class="meta-sub">PEAK GUSTS</span>
+              <span class="meta-number" id="p1Gusts">285 KM/H</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- PANEL 2: STORM TRACK -->
+        <article class="intel-panel" aria-labelledby="titlePanelTrack">
+          <div class="panel-header">
+            <div>
+              <span class="utility-label">GEOGRAPHIC TRAJECTORY</span>
+              <h3 class="panel-title" id="titlePanelTrack">STORM TRACK</h3>
+            </div>
+            <span class="utility-label utility-label--accent">AM-ConvGRU MODEL</span>
+          </div>
+
+          <!-- Dark Ocean Geographic Leaflet Map -->
+          <div class="panel-visual-area">
+            <div id="trackMapContainer" role="application" aria-label="Interactive Storm Track Map"></div>
+            <!-- Timeline Waypoint Scrubber -->
+            <div class="track-scrubber">
+              <span class="utility-label utility-label--muted">TIMELINE:</span>
+              <input type="range" id="trackScrubber" min="0" max="50" value="0" aria-label="Track Timeline Scrubber">
+              <span id="scrubberTime" class="track-scrubber-time">2018-09-15 12:00 UTC</span>
+            </div>
+          </div>
+
+          <div class="panel-footer-meta">
+            <div class="meta-group">
+              <span class="meta-sub">CURRENT LOCATION</span>
+              <span class="meta-number" id="p2Location">20.2°N, 113.8°E</span>
+            </div>
+            <div class="meta-group" style="text-align: right;">
+              <span class="meta-sub">TRANSLATION VECTOR</span>
+              <span class="meta-number" id="p2Direction">WNW @ 24 KM/H</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- PANEL 3: CORE PRESSURE -->
+        <article class="intel-panel" aria-labelledby="titlePanelPressure">
+          <div class="panel-header">
+            <div>
+              <span class="utility-label">BAROMETRIC DEPRESSION</span>
+              <h3 class="panel-title" id="titlePanelPressure">CORE PRESSURE</h3>
+            </div>
+            <span class="utility-label utility-label--accent">ISOBARIC GRADIENT</span>
+          </div>
+
+          <!-- Circular Isobar Geometry Canvas & Huge Typography -->
+          <div class="panel-visual-area">
+            <div class="pressure-geometry-canvas-wrapper">
+              <canvas id="pressureIsobarCanvas"></canvas>
+              <div class="pressure-center-overlay">
+                <div class="pressure-huge-value" id="p3PressureVal">910</div>
+                <div class="pressure-huge-unit">HECTOPASCALS</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-footer-meta">
+            <div class="meta-group">
+              <span class="meta-sub">CENTRAL DEFICIT (ΔP)</span>
+              <span class="meta-number" id="p3DeltaP">-102 hPa</span>
+            </div>
+            <div class="meta-group" style="text-align: right;">
+              <span class="meta-sub">VORTEX STATUS</span>
+              <span class="meta-number" id="p3BaricStatus" style="font-size: 1.4rem;">RAPID INTENSIFICATION</span>
+            </div>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SECTION 3: INTELLIGENCE
+         ======================================================================= -->
+    <section class="editorial-section reveal-init" id="intelligence" aria-labelledby="headingIntel">
+      <div class="intelligence-split-layout">
+        
+        <!-- LEFT: Large Editorial Typography & 3D Atmospheric Preview -->
+        <div class="intel-left-editorial">
+          <span class="utility-label utility-label--accent">SCIENTIFIC METRIC MATRIX</span>
+          <h2 class="intel-heading" id="headingIntel">
+            STORM<br>INTELLIGENCE
+          </h2>
+          <p class="intel-editorial-prose">
+            Continuous synthesis of atmospheric pressure surfaces, thermal cloud-top gradients, and geopotential boundary layer fields. Calibrated against historical best-track archives and real-time open marine reanalysis.
+          </p>
+
+          <!-- 3D Atmospheric Layer Slice Preview (Isometric 850 / 500 / 200 hPa) -->
+          <div class="atmospheric-3d-box" aria-label="3D Atmospheric Pressure Layers">
+            <div class="layer-slice-tags">
+              <span class="layer-tag">200 hPa Outflow</span>
+              <span class="layer-tag">500 hPa Steering</span>
+              <span class="layer-tag">850 hPa Inflow</span>
+            </div>
+            <canvas id="atm3DCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- RIGHT: Compact Scientific Matrix -->
+        <div class="intel-right-matrix">
+          
+          <!-- Provenance Header Card -->
+          <div class="data-source-provenance-box">
+            <div class="provenance-info">
+              <span class="provenance-title" id="intelProvenanceTitle">CHINA METEOROLOGICAL ADMINISTRATION (CMA)</span>
+              <span class="provenance-source" id="intelProvenanceSource">Official Best-Track Archive & ERA-Interim Reanalysis Tensor</span>
+            </div>
+            <button class="live-api-sync-btn" id="liveSyncBtn" title="Sync live oceanic conditions via Open-Meteo API">
+              SYNC LIVE API
+            </button>
+          </div>
+
+          <!-- Scientific Category Grid: WIND, PRESSURE, TRACK, RADIUS, INTENSITY, MOVEMENT -->
+          <div class="scientific-categories-grid">
+            
+            <!-- Category 1: WIND -->
+            <div class="category-card">
+              <div class="cat-header">
+                <span class="cat-title">WIND</span>
+                <span class="cat-badge">10M SUSTAINED</span>
+              </div>
+              <div class="cat-metrics-list">
+                <div class="cat-row">
+                  <span class="cat-key">SUSTAINED:</span>
+                  <span class="cat-val"><span id="catWindSustained">234</span><span class="cat-val-sub">KM/H</span></span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">MARITIME:</span>
+                  <span class="cat-val" id="catWindKnots">126 KT</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">PEAK GUSTS:</span>
+                  <span class="cat-val" id="catWindGusts">285 KM/H</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category 2: PRESSURE -->
+            <div class="category-card">
+              <div class="cat-header">
+                <span class="cat-title">PRESSURE</span>
+                <span class="cat-badge">CENTRAL EYE</span>
+              </div>
+              <div class="cat-metrics-list">
+                <div class="cat-row">
+                  <span class="cat-key">MINIMUM:</span>
+                  <span class="cat-val"><span id="catPresMin">910</span><span class="cat-val-sub">hPa</span></span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">PERIPHERAL:</span>
+                  <span class="cat-val">1012<span class="cat-val-sub">hPa</span></span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">BARIC GRADIENT:</span>
+                  <span class="cat-val" id="catPresGrad">2.26 hPa/10km</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category 3: TRACK -->
+            <div class="category-card">
+              <div class="cat-header">
+                <span class="cat-title">TRACK</span>
+                <span class="cat-badge">KINEMATICS</span>
+              </div>
+              <div class="cat-metrics-list">
+                <div class="cat-row">
+                  <span class="cat-key">BEARING:</span>
+                  <span class="cat-val" id="catTrackBearing">WNW (24 KM/H)</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">EYE COORDS:</span>
+                  <span class="cat-val" id="catTrackCoords">20.2°N, 113.8°E</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">PROJECTION:</span>
+                  <span class="cat-val">AM-ConvGRU 24h</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category 4: RADIUS -->
+            <div class="category-card">
+              <div class="cat-header">
+                <span class="cat-title">RADIUS</span>
+                <span class="cat-badge">EXTENT</span>
+              </div>
+              <div class="cat-metrics-list">
+                <div class="cat-row">
+                  <span class="cat-key">EYEWALL RMW:</span>
+                  <span class="cat-val" id="catRadiusRmw">30 KM</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">GALE ENVELOPE:</span>
+                  <span class="cat-val" id="catRadiusGale">135 KM</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">STORM SURGE:</span>
+                  <span class="cat-val">4.5 - 6.0 M</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category 5: INTENSITY -->
+            <div class="category-card">
+              <div class="cat-header">
+                <span class="cat-title">INTENSITY</span>
+                <span class="cat-badge">DVORAK</span>
+              </div>
+              <div class="cat-metrics-list">
+                <div class="cat-row">
+                  <span class="cat-key">CATEGORY:</span>
+                  <span class="cat-val" id="catIntensityGrade" style="font-size: 1rem;">Super Typhoon</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">DVORAK NUMBER:</span>
+                  <span class="cat-val" id="catIntensityDvorak">T7.0</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">CONFIDENCE:</span>
+                  <span class="cat-val">98.4%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Category 6: MOVEMENT -->
+            <div class="category-card">
+              <div class="cat-header">
+                <span class="cat-title">MOVEMENT</span>
+                <span class="cat-badge">STEERING</span>
+              </div>
+              <div class="cat-metrics-list">
+                <div class="cat-row">
+                  <span class="cat-key">STEERING LAYER:</span>
+                  <span class="cat-val" id="catMovementSteering" style="font-size: 0.95rem;">500 hPa Subtropical Ridge</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">TRANSLATION:</span>
+                  <span class="cat-val" id="catMovementVector">WNW • 2018-09-15</span>
+                </div>
+                <div class="cat-row">
+                  <span class="cat-key">SHEAR EFFECT:</span>
+                  <span class="cat-val">LOW (5-10 KTS)</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SECTION 4: SYSTEM
+         ======================================================================= -->
+    <section class="editorial-section reveal-init" id="system" aria-labelledby="headingSystem">
+      <div class="section-headline-container">
+        <span class="utility-label utility-label--accent">TELEMETRY ARCHITECTURE & INFERENCE PIPELINE</span>
+        <h2 class="section-editorial-heading" id="headingSystem">
+          MONITORING<br>PIPELINE
+        </h2>
+      </div>
+
+      <div class="system-pipeline-container">
+        <!-- Visual Node Chain -->
+        <div class="pipeline-chain" role="list">
+          <!-- Step 1: Satellite -->
+          <div class="pipeline-node" role="listitem" data-stage="satellite">
+            <div class="node-icon-circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </div>
+            <span class="node-title">SATELLITE</span>
+            <span class="node-stage-num">01 / SENSOR</span>
+          </div>
+
+          <div class="pipeline-connector-line"></div>
+
+          <!-- Step 2: Atmospheric Data -->
+          <div class="pipeline-node" role="listitem" data-stage="atmosphere">
+            <div class="node-icon-circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <span class="node-title">ATMOSPHERIC</span>
+            <span class="node-stage-num">02 / REANALYSIS</span>
+          </div>
+
+          <div class="pipeline-connector-line"></div>
+
+          <!-- Step 3: Cyclone Detection -->
+          <div class="pipeline-node active" role="listitem" data-stage="detection">
+            <div class="node-icon-circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="4"></circle>
+                <line x1="22" y1="12" x2="18" y2="12"></line>
+                <line x1="6" y1="12" x2="2" y2="12"></line>
+              </svg>
+            </div>
+            <span class="node-title">DETECTION</span>
+            <span class="node-stage-num">03 / AM-ConvGRU</span>
+          </div>
+
+          <div class="pipeline-connector-line"></div>
+
+          <!-- Step 4: Track Analysis -->
+          <div class="pipeline-node" role="listitem" data-stage="track">
+            <div class="node-icon-circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+            </div>
+            <span class="node-title">TRACK</span>
+            <span class="node-stage-num">04 / TRAJECTORY</span>
+          </div>
+
+          <div class="pipeline-connector-line"></div>
+
+          <!-- Step 5: Intensity Estimation -->
+          <div class="pipeline-node" role="listitem" data-stage="intensity">
+            <div class="node-icon-circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <span class="node-title">INTENSITY</span>
+            <span class="node-stage-num">05 / CORE BARIC</span>
+          </div>
+
+          <div class="pipeline-connector-line"></div>
+
+          <!-- Step 6: Alert Intelligence -->
+          <div class="pipeline-node" role="listitem" data-stage="alert">
+            <div class="node-icon-circle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </div>
+            <span class="node-title">ALERT</span>
+            <span class="node-stage-num">06 / ADVISORY</span>
+          </div>
+        </div>
+
+        <!-- Node Deep Diagnostic Box -->
+        <div class="pipeline-detail-card" id="pipelineDetailCard">
+          <div>
+            <span class="utility-label utility-label--accent">ACTIVE MODEL • LATENCY: 0.18s</span>
+            <h4 style="margin: 0.4rem 0 0.2rem; font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice);">Spatio-Temporal Cyclone Detection</h4>
+            <p style="font-size: 0.76rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--sky-blue); margin-bottom: 0.8rem;">AM-ConvGRU Spatio-Temporal Vortex Locator</p>
+            <p style="font-size: 0.88rem; color: var(--mist); line-height: 1.6; max-width: 680px;">Deep convolutional gated recurrent unit with spatial attention mechanism. Processes 3D ERA-Interim and reanalysis tensors across 4 historical time intervals to isolate the low-level barotropic vortex center.</p>
+          </div>
+          <div style="text-align: right; min-width: 130px;">
+            <span class="utility-label">DIAGNOSTIC STATUS</span>
+            <span style="font-family: var(--font-heading); font-size: 1.6rem; color: var(--accent-cyan); display:block; margin-top:0.2rem;">NOMINAL</span>
+          </div>
+        </div>
+
+        <!-- 4 System Status Indicators -->
+        <div class="system-status-grid">
+          <div class="sys-status-card">
+            <span class="utility-label">CHANNEL 01</span>
+            <h3 class="sys-title">SATELLITE DATA</h3>
+            <p class="sys-detail">INSAT-3DR & FY-4B geostationary radiance feeds operational.</p>
+            <div class="sys-indicator-row">
+              <span class="sys-dot"></span>
+              <span class="sys-state">CONNECTED</span>
+            </div>
+          </div>
+
+          <div class="sys-status-card">
+            <span class="utility-label">CHANNEL 02</span>
+            <h3 class="sys-title">RADAR DATA</h3>
+            <p class="sys-detail">Coastal Doppler Weather Radar (DWR) composite network synced.</p>
+            <div class="sys-indicator-row">
+              <span class="sys-dot"></span>
+              <span class="sys-state">CONNECTED</span>
+            </div>
+          </div>
+
+          <div class="sys-status-card">
+            <span class="utility-label">CHANNEL 03</span>
+            <h3 class="sys-title">TRACK ENGINE</h3>
+            <p class="sys-detail">AM-ConvGRU spatio-temporal deep model loaded from Model.pkl.</p>
+            <div class="sys-indicator-row">
+              <span class="sys-dot"></span>
+              <span class="sys-state">ACTIVE</span>
+            </div>
+          </div>
+
+          <div class="sys-status-card">
+            <span class="utility-label">CHANNEL 04</span>
+            <h3 class="sys-title">INTENSITY MODEL</h3>
+            <p class="sys-detail">Automated Dvorak Technique (ADT) and pressure gradient resolver.</p>
+            <div class="sys-indicator-row">
+              <span class="sys-dot"></span>
+              <span class="sys-state">ACTIVE</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- =======================================================================
+       FOOTER
+       ======================================================================= -->
+  <footer class="footer-editorial" role="contentinfo">
+    <div class="footer-huge-heading-wrapper">
+      <h2 class="footer-heading">WATCH<br>THE SKY.</h2>
+    </div>
+
+    <div class="footer-columns-grid">
+      <div class="footer-brand-col">
+        <h3 class="footer-brand-title">— CYCLONEX</h3>
+        <p class="footer-manifesto">
+          High-precision climate intelligence and spatio-temporal tropical cyclone track prediction platform. Built for atmospheric researchers, maritime operations, and coastal disaster mitigation authorities.
+        </p>
+      </div>
+
+      <div class="footer-links-col">
+        <span class="footer-col-header">INTELLIGENCE</span>
+        <a href="#detection" class="footer-link">Detection Matrix</a>
+        <a href="#detection" class="footer-link">Storm Track Leaflet</a>
+        <a href="#detection" class="footer-link">Wind Field Streamlines</a>
+        <a href="#system" class="footer-link">Monitoring System</a>
+      </div>
+
+      <div class="footer-links-col">
+        <span class="footer-col-header">LEGAL & ETHICS</span>
+        <a href="#" class="footer-link">Operational Protocols</a>
+        <a href="#" class="footer-link">Scientific Integrity</a>
+        <a href="#" class="footer-link">Data Governance</a>
+        <a href="#" class="footer-link">Terms & Licensing</a>
+      </div>
+
+      <div class="footer-broadcast-col">
+        <span class="footer-col-header">METEOROLOGICAL DISPATCH</span>
+        <p style="font-size: 0.8rem; color: var(--mist); opacity: 0.8;">Subscribe to real-time basin advisory broadcasts and severe cyclonic storm bulletins.</p>
+        <form class="broadcast-input-group" id="broadcastForm">
+          <input type="email" class="broadcast-input" placeholder="STATION / EMAIL" required aria-label="Email for alerts">
+          <button type="submit" class="broadcast-btn">SUBSCRIBE</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="footer-bottom-bar">
+      <span>&copy; 2026 CYCLONEX CLIMATE INTELLIGENCE • ALL RIGHTS RESERVED</span>
+      <span class="footer-sources-tag">DATA SOURCES: RSMC NEW DELHI • IMD • CMA BEST TRACK • ECMWF ERA-INTERIM</span>
+    </div>
+  </footer>
+
+  <!-- Cyclone Dataset Bundle -->
+  <script src="cyclones_dataset.js"></script>
+  <!-- CYCLONEX Engine Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYCLONEX — Operator Portal Login & 3D Atmospheric Vortex</title>
+  <meta name="description" content="Secure meteorological authentication portal with real-time 3D revolving cyclone vortex simulation for Smart India Hackathon 26070.">
+
+  <!-- Google Fonts: Anton & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- CYCLONEX Unified Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body style="overflow-x: hidden; background: #071D33;">
+
+  <!-- Atmospheric Noise Overlay -->
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <!-- Shared Navigation Header -->
+  <div id="cyclonexSharedHeader"></div>
+
+  <!-- Fullscreen Login Container with 3D Cyclone Vortex -->
+  <main class="login-page-container">
+
+    <!-- Procedural 3D Cyclone Canvas Background Layer -->
+    <div class="login-cyclone-canvas-wrapper" aria-hidden="true">
+      <canvas id="loginCycloneCanvas"></canvas>
+    </div>
+
+    <!-- Frosted Glassmorphism Login Card -->
+    <section class="login-card" aria-labelledby="loginTitle">
+      <div class="login-card-header">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.2rem;">
+          <span class="utility-label utility-label--accent">SIH 26070 CLEARANCE</span>
+          <span class="status-pulse-dot" title="Auth Service Active"></span>
+        </div>
+        <h1 class="login-card-title" id="loginTitle">OPERATOR ACCESS</h1>
+        <p class="login-card-desc">
+          Authorized IMD, RSMC & meteorological command terminal authentication. Enter official credentials to access operational feeds.
+        </p>
+      </div>
+
+      <!-- Quick-Fill Demo Helper Badge -->
+      <div class="login-quick-hint">
+        <span><b>Evaluator Demo:</b> MET-26070 / cyclone2026</span>
+        <button type="button" class="btn-quick-fill" id="btnQuickFill" aria-label="Auto-fill demo credentials">
+          AUTO-FILL
+        </button>
+      </div>
+
+      <!-- Live Feedback Alert Box -->
+      <div id="loginStatus" class="login-status-box" role="alert" aria-live="polite"></div>
+
+      <!-- Authentication Form -->
+      <form id="loginForm" novalidate style="display: flex; flex-direction: column; gap: 1.1rem;">
+        <!-- Employee ID Input -->
+        <div class="login-form-group">
+          <label for="employeeId" class="utility-label utility-label--muted" style="margin-bottom: 0.35rem;">
+            EMPLOYEE / OPERATOR ID
+          </label>
+          <div class="login-input-wrap">
+            <span class="input-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </span>
+            <input 
+              type="text" 
+              id="employeeId" 
+              name="employeeId" 
+              placeholder="e.g. MET-26070" 
+              required 
+              autocomplete="username"
+              spellcheck="false"
+            >
+          </div>
+        </div>
+
+        <!-- Security Access Key Input -->
+        <div class="login-form-group">
+          <label for="password" class="utility-label utility-label--muted" style="margin-bottom: 0.35rem;">
+            SECURITY ACCESS KEY
+          </label>
+          <div class="login-input-wrap">
+            <span class="input-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </span>
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              placeholder="••••••••••••" 
+              required 
+              autocomplete="current-password"
+            >
+            <button type="button" id="btnTogglePw" class="login-pw-toggle" aria-label="Toggle password visibility">
+              <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="btnSubmit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem; height: 2.9rem;">
+          <span class="icon-inline">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+              <polyline points="10 17 15 12 10 7"></polyline>
+              <line x1="15" y1="12" x2="3" y2="12"></line>
+            </svg>
+          </span>
+          <span id="btnSubmitText">AUTHENTICATE & ENTER WORKSTATION</span>
+        </button>
+      </form>
+
+      <!-- Return Link -->
+      <div style="text-align: center; margin-top: 0.4rem;">
+        <a href="index.html" style="font-size: var(--text-xs); color: var(--sky-blue); text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+          <span>←</span> Return to Cyclone Overview
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Dataset & Shared Header Scripts -->
+  <script src="cyclones_dataset.js"></script>
+  <script src="shared_nav.js"></script>
+
+  <!-- 3D Tubes Cursor Background & Procedural Fallback Engine -->
+  <script type="module">
+    import TubesCursor from './vendor/tubes1.min.js';
+    import { signInOperator, trackEvent, mapEmployeeIdToEmail } from './firebase_config.js';
+
+    // =========================================================================
+    // 3D TUBES BACKGROUND INITIALIZATION (threejs-components / WebGL)
+    // =========================================================================
+    (function init3DBackground() {
+      const canvas = document.getElementById('loginCycloneCanvas');
+      if (!canvas) return;
+
+      // Accessibility: Respect user's motion preference
+      const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReducedMotion) {
+        console.log('[CYCLONEX] prefers-reduced-motion active: rendering static procedural atmospheric gradient.');
+        runStaticFallback(canvas);
+        return;
+      }
+
+      // Check WebGL availability
+      let hasWebGL = false;
+      try {
+        const testGl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (testGl) hasWebGL = true;
+      } catch (e) {
+        hasWebGL = false;
+      }
+
+      if (!hasWebGL) {
+        console.warn('[CYCLONEX] WebGL not supported. Engaging procedural vortex fallback.');
+        runProceduralVortex(canvas);
+        return;
+      }
+
+      try {
+        // Initialize 3D Tubes Cursor with CYCLONEX Oceanic Palette
+        // Palette: Muted Teal (#62929E), Slate Blue (#546A7B), Charcoal (#393D3F), Cool White (#FDFDFF)
+        const tubesApp = TubesCursor(canvas, {
+          bloom: {
+            threshold: 0.1,
+            strength: 1.2,
+            radius: 0.4
+          },
+          tubes: {
+            count: 22,
+            colors: ['#62929E', '#546A7B', '#FDFDFF', '#287CA8', '#0B2D4D'],
+            minRadius: 0.008,
+            maxRadius: 0.045,
+            minTubularSegments: 32,
+            maxTubularSegments: 96,
+            material: {
+              metalness: 0.85,
+              roughness: 0.28
+            },
+            lights: {
+              intensity: 180,
+              colors: ['#62929E', '#546A7B', '#FDFDFF', '#287CA8']
+            },
+            lerp: 0.35,
+            noise: 0.06
+          },
+          sleepRadiusX: 240,
+          sleepRadiusY: 120,
+          sleepTimeScale1: 0.8,
+          sleepTimeScale2: 1.4
+        });
+
+        // Store reference on window for inspection/cleanup
+        window._cyclonexTubesApp = tubesApp;
+        console.log('[CYCLONEX] 3D Tubes Background successfully initialized.');
+      } catch (err) {
+        console.warn('[CYCLONEX] Error initializing 3D Tubes background:', err);
+        runProceduralVortex(canvas);
+      }
+
+      // -----------------------------------------------------------------------
+      // Graceful Fallback: Procedural Revolving Cyclone Vortex (Canvas 2D)
+      // -----------------------------------------------------------------------
+      function runProceduralVortex(cvs) {
+        const ctx = cvs.getContext('2d');
+        if (!ctx) return;
+
+        let width = 0;
+        let height = 0;
+        const numParticles = 400;
+        const particles = [];
+        let rotationAngle = 0;
+        const fov = 420;
+
+        function resize() {
+          width = cvs.width = window.innerWidth * window.devicePixelRatio;
+          height = cvs.height = window.innerHeight * window.devicePixelRatio;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const numArms = 4;
+        for (let i = 0; i < numParticles; i++) {
+          const armIndex = i % numArms;
+          const armOffset = (armIndex * (2 * Math.PI / numArms));
+          const t = Math.pow(Math.random(), 0.65);
+          const theta = armOffset + t * 4.5 + (Math.random() - 0.5) * 0.45;
+          const radius3D = 35 + t * 440;
+          const zAltitude = -60 + Math.sin(t * Math.PI) * 110 + (Math.random() - 0.5) * 40;
+          const orbitalSpeed = 0.007 + (1 - t * 0.6) * 0.014;
+
+          particles.push({
+            radius: radius3D,
+            theta: theta,
+            z: zAltitude,
+            speed: orbitalSpeed,
+            size: 1.2 + Math.random() * 2.6,
+            baseAlpha: 0.35 + Math.random() * 0.6,
+            isCore: t < 0.18
+          });
+        }
+
+        const pitchAngle = 0.65;
+        const cosPitch = Math.cos(pitchAngle);
+        const sinPitch = Math.sin(pitchAngle);
+
+        function renderFrame() {
+          ctx.clearRect(0, 0, width, height);
+          const cx = width / 2;
+          const cy = height / 2;
+
+          const coreGlowRadius = 140 * window.devicePixelRatio;
+          const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreGlowRadius);
+          coreGlow.addColorStop(0, 'rgba(98, 146, 158, 0.22)');
+          coreGlow.addColorStop(0.4, 'rgba(84, 106, 123, 0.15)');
+          coreGlow.addColorStop(1, 'rgba(7, 29, 51, 0)');
+          ctx.fillStyle = coreGlow;
+          ctx.beginPath();
+          ctx.arc(cx, cy, coreGlowRadius, 0, Math.PI * 2);
+          ctx.fill();
+
+          rotationAngle += 0.012;
+          const projectedParticles = [];
+
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            p.theta += p.speed;
+            const currentAngle = p.theta + rotationAngle;
+            const x3d = Math.cos(currentAngle) * p.radius;
+            const y3d = Math.sin(currentAngle) * p.radius;
+            const z3d = p.z;
+
+            const xCam = x3d;
+            const yCam = y3d * cosPitch - z3d * sinPitch;
+            const zCam = y3d * sinPitch + z3d * cosPitch + 600;
+
+            if (zCam > 10) {
+              const scale = (fov * window.devicePixelRatio) / zCam;
+              projectedParticles.push({
+                x: cx + xCam * scale,
+                y: cy + yCam * scale,
+                r: Math.max(0.8, p.size * scale),
+                alpha: Math.min(1, Math.max(0.1, (1000 - zCam) / 700)) * p.baseAlpha,
+                isCore: p.isCore,
+                zCam: zCam
+              });
+            }
+          }
+
+          projectedParticles.sort((a, b) => b.zCam - a.zCam);
+          for (let j = 0; j < projectedParticles.length; j++) {
+            const pt = projectedParticles[j];
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+            ctx.fillStyle = pt.isCore ? `rgba(253, 253, 255, ${pt.alpha})` : `rgba(98, 146, 158, ${pt.alpha * 0.85})`;
+            ctx.fill();
+          }
+
+          requestAnimationFrame(renderFrame);
+        }
+        requestAnimationFrame(renderFrame);
+      }
+
+      function runStaticFallback(cvs) {
+        const ctx = cvs.getContext('2d');
+        if (!ctx) return;
+        cvs.width = window.innerWidth;
+        cvs.height = window.innerHeight;
+        const grad = ctx.createRadialGradient(cvs.width/2, cvs.height/2, 20, cvs.width/2, cvs.height/2, cvs.width/2);
+        grad.addColorStop(0, 'rgba(98, 146, 158, 0.18)');
+        grad.addColorStop(0.6, 'rgba(84, 106, 123, 0.10)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
+      }
+    })();
+
+    // =========================================================================
+    // LOGIN FORM HANDLING & DESTINATION REDIRECTION
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('loginForm');
+      const empInput = document.getElementById('employeeId');
+      const pwInput = document.getElementById('password');
+      const btnTogglePw = document.getElementById('btnTogglePw');
+      const btnQuickFill = document.getElementById('btnQuickFill');
+      const statusBox = document.getElementById('loginStatus');
+      const btnSubmit = document.getElementById('btnSubmit');
+      const btnSubmitText = document.getElementById('btnSubmitText');
+
+      // Helper: complete login redirect
+      function completeLogin(userData) {
+        sessionStorage.setItem('cyclonex_user', JSON.stringify(userData));
+        try {
+          trackEvent('login_success', {
+            employee_id: userData.employee_id,
+            clearance_level: userData.clearance_level || 'STANDARD',
+            method: 'credentials'
+          });
+        } catch (e) {}
+        const savedRedirect = sessionStorage.getItem('cyclonex_redirect');
+        sessionStorage.removeItem('cyclonex_redirect');
+        const target = (savedRedirect && !savedRedirect.includes('login.html')) ? savedRedirect : 'index.html';
+        setTimeout(() => {
+          window.location.replace(target);
+        }, 800);
+      }
+
+      // Auto-fill demo helper
+      if (btnQuickFill) {
+        btnQuickFill.addEventListener('click', () => {
+          empInput.value = 'MET-26070';
+          pwInput.value = 'cyclone2026';
+          empInput.focus();
+        });
+      }
+
+      // Password visibility toggle
+      if (btnTogglePw) {
+        btnTogglePw.addEventListener('click', () => {
+          const isPw = pwInput.type === 'password';
+          pwInput.type = isPw ? 'text' : 'password';
+          btnTogglePw.style.color = isPw ? 'var(--accent-cyan)' : 'var(--sky-blue)';
+        });
+      }
+
+      // Form Submit (Primary Firebase Authentication + Backend Authorization)
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const empId = empInput.value.trim();
+        const pwd = pwInput.value.trim();
+
+        if (!empId || !pwd) {
+          showStatus('error', 'Please enter both Employee ID and Security Access Key.');
+          return;
+        }
+
+        // Prevent duplicate submissions
+        btnSubmit.disabled = true;
+        btnSubmitText.textContent = 'AUTHENTICATING WITH FIREBASE...';
+        showStatus('none', '');
+
+        try {
+          // 1. Authenticate with Firebase Authentication as Primary Identity Provider
+          let authResult;
+          try {
+            authResult = await signInOperator(empId, pwd);
+          } catch (fbErr) {
+            console.error('[CYCLONEX] Firebase Authentication error:', fbErr);
+            let userMsg = 'Authentication failed. Please verify your Employee ID and Security Key.';
+            if (fbErr.code === 'auth/invalid-credential' || fbErr.code === 'auth/wrong-password' || fbErr.code === 'auth/user-not-found') {
+              userMsg = 'Authentication failed. Invalid Employee ID or Security Access Key.';
+            } else if (fbErr.code === 'auth/user-disabled') {
+              userMsg = 'Operator account is suspended or disabled. Contact RSMC command.';
+            } else if (fbErr.code === 'auth/too-many-requests') {
+              userMsg = 'Too many failed login attempts. Access temporarily locked. Try again later.';
+            } else if (fbErr.code === 'auth/network-request-failed') {
+              userMsg = 'Network error connecting to Firebase Authentication server.';
+            } else if (fbErr.message) {
+              userMsg = fbErr.message;
+            }
+            showStatus('error', userMsg);
+            btnSubmit.disabled = false;
+            btnSubmitText.textContent = 'AUTHENTICATE & ENTER WORKSTATION';
+            return;
+          }
+
+          const { idToken, user } = authResult;
+          btnSubmitText.textContent = 'VERIFYING OPERATOR CLEARANCE...';
+
+          // 2. Transmit genuine Firebase ID token to backend for cryptographic verification & clearance authorization
+          const apiBase = (window.CYCLONEX && window.CYCLONEX.apiBase) || '';
+          const verifyResponse = await fetch(`${apiBase}/api/auth/verify-token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+              id_token: idToken,
+              employee_id: empId
+            })
+          });
+
+          const verifyData = await verifyResponse.json();
+
+          if (verifyResponse.ok && verifyData.status === 'AUTHENTICATED') {
+            showStatus('success', `✓ Clearance Verified: ${verifyData.operator_name} (${verifyData.clearance_level}). Entering workstation...`);
+            // Store verified session containing server-validated clearance and token
+            completeLogin(verifyData);
+          } else {
+            const errDetail = verifyData.detail || 'Authorization failed: insufficient operator privileges.';
+            showStatus('error', errDetail);
+            btnSubmit.disabled = false;
+            btnSubmitText.textContent = 'AUTHENTICATE & ENTER WORKSTATION';
+          }
+        } catch (netErr) {
+          console.error('[CYCLONEX] Authentication submission error:', netErr);
+          showStatus('error', 'Connection error. Unable to verify credentials with CYCLONEX authorization server.');
+          btnSubmit.disabled = false;
+          btnSubmitText.textContent = 'AUTHENTICATE & ENTER WORKSTATION';
+        }
+      });
+
+      function showStatus(type, msg) {
+        statusBox.className = 'login-status-box';
+        if (type === 'error') {
+          statusBox.classList.add('error');
+          statusBox.textContent = msg;
+        } else if (type === 'success') {
+          statusBox.classList.add('success');
+          statusBox.textContent = msg;
+        } else {
+          statusBox.textContent = '';
+        }
+      }
+    });
+  </script>
+</body>
+</html>

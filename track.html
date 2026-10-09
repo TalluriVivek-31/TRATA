@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track & Trajectory Prediction — CYCLONEX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Leaflet GIS Engine (Local vendor with unpkg CDN fallback) -->
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script>
+    if (typeof L === 'undefined') {
+      document.write('<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />');
+      document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>');
+    }
+  </script>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .imd-layer-toggle-chip {
+      background: rgba(11,45,77,0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 0.35rem 0.85rem;
+      font-size: 0.72rem;
+      color: var(--mist);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .imd-layer-toggle-chip.active {
+      background: rgba(40,124,168,0.35);
+      border-color: var(--accent-cyan);
+      color: var(--ice);
+      font-weight: 600;
+    }
+    .imd-layer-toggle-chip input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--accent-cyan);
+    }
+    .wind-legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="noise-overlay" aria-hidden="true"></div>
+  <div id="cyclonexSharedHeader"></div>
+
+  <main class="page-container">
+    <header class="page-header-banner" style="padding: 1.2rem 2rem 0.6rem; margin-bottom: 0.8rem;">
+      <span class="utility-label utility-label--accent">PAGE 04 // SPATIOTEMPORAL TRAJECTORY, IMD BEST-TRACK & WARNING CONES</span>
+      <h1 class="page-title">TRACK &<br>FORECAST</h1>
+      <p class="page-desc">
+        Integrated GIS workstation displaying official India Meteorological Department (IMD) observed tracks, RSMC New Delhi forecast paths, gale wind warnings (27kt, 34kt, 50kt, 64kt), official Cone of Uncertainty, alongside CYCLONEX AM-ConvGRU spatiotemporal predictions.
+      </p>
+    </header>
+
+    <div class="content-grid-workstation" style="grid-template-columns: 1fr;">
+      
+      <!-- Full-Width GIS Map Container -->
+      <section class="workstation-card" style="padding: 1.5rem; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding: 0.5rem 1rem; flex-wrap: wrap; gap: 0.8rem;">
+          <div>
+            <span class="utility-label">GEOGRAPHIC TRAJECTORY & IMD HAZARD WORKSTATION</span>
+            <div style="display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap;">
+              <span id="activeStormTitle" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice);">ACTIVE STORM</span>
+              <span id="imdFreshnessBadge" class="provenance-tag live" style="font-size: 0.62rem;">IMD RSMC VERIFIED</span>
+            </div>
+          </div>
+          <!-- Real-Time Open-Meteo Weather Query at Clicked Location -->
+          <div style="display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
+            <div id="weatherAtPointBox" style="background: rgba(7,29,51,0.85); padding: 0.45rem 1.2rem; border-radius: var(--radius-pill); border: 1px solid var(--border-subtle); font-size: 0.76rem; color: var(--mist);">
+              Click map to probe atmospheric conditions via Open-Meteo
+            </div>
+            <button id="toggleForecastConeBtn" class="live-api-sync-btn">TOGGLE 24H CONE</button>
+            <button id="btnRefreshImdData" class="live-api-sync-btn" title="Refresh official IMD layers from gateway">SYNC IMD DATA</button>
+          </div>
+        </div>
+
+        <!-- Official IMD Interactive Layer Manager Bar -->
+        <div style="background: rgba(7,29,51,0.92); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.6rem 1rem; margin-bottom: 0.8rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span class="utility-label" style="color: var(--accent-cyan); font-size: 0.68rem; margin-right: 0.2rem;">OFFICIAL IMD LAYERS:</span>
+            
+            <label class="imd-layer-toggle-chip active" id="chipImdObserved">
+              <input type="checkbox" id="chkImdObserved" checked>
+              <span>🔴 IMD Observed Track</span>
+            </label>
+
+            <label class="imd-layer-toggle-chip active" id="chipImdForecast">
+              <input type="checkbox" id="chkImdForecast" checked>
+              <span>🟠 IMD RSMC Forecast</span>
+            </label>
+
+            <label class="imd-layer-toggle-chip active" id="chipImdCou">
+              <input type="checkbox" id="chkImdCou" checked>
+              <span>🔷 IMD Cone of Uncertainty (COU)</span>
+            </label>
+
+            <label class="imd-layer-toggle-chip active" id="chipImdWind">
+              <input type="checkbox" id="chkImdWind" checked>
+              <span>🌪️ IMD Wind Warnings</span>
+            </label>
+          </div>
+
+          <!-- Wind Threshold Independent Toggles -->
+          <div id="windThresholdToggles" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.68rem;">
+            <span class="utility-label utility-label--muted" style="font-size: 0.62rem;">ZONES:</span>
+            <label class="imd-layer-toggle-chip active" style="padding: 0.2rem 0.5rem;" title="Depression Gale (50 km/h)">
+              <input type="checkbox" id="chkWind27" checked>
+              <span class="wind-legend-dot" style="background: #65BDD1;"></span> 27kt
+            </label>
+            <label class="imd-layer-toggle-chip active" style="padding: 0.2rem 0.5rem;" title="Cyclonic Storm Gale (63 km/h)">
+              <input type="checkbox" id="chkWind34" checked>
+              <span class="wind-legend-dot" style="background: #ffdd57;"></span> 34kt
+            </label>
+            <label class="imd-layer-toggle-chip active" style="padding: 0.2rem 0.5rem;" title="Severe Cyclonic Storm Gale (92 km/h)">
+              <input type="checkbox" id="chkWind50" checked>
+              <span class="wind-legend-dot" style="background: #ff8566;"></span> 50kt
+            </label>
+            <label class="imd-layer-toggle-chip active" style="padding: 0.2rem 0.5rem;" title="Hurricane Force Core (118 km/h)">
+              <input type="checkbox" id="chkWind64" checked>
+              <span class="wind-legend-dot" style="background: #b30000;"></span> 64kt
+            </label>
+          </div>
+        </div>
+
+        <div class="map-wrapper-fixed" style="height: 580px;">
+          <div id="mainTrackMap"></div>
+
+          <!-- Timeline Scrubber -->
+          <div class="track-scrubber" style="bottom: 1.5rem;">
+            <span class="utility-label utility-label--muted">WAYPOINT:</span>
+            <input type="range" id="pageScrubber" min="0" max="10" value="0" aria-label="Waypoint Timeline Scrubber">
+            <span id="pageScrubberTime" class="track-scrubber-time">Initial Waypoint</span>
+          </div>
+        </div>
+
+        <!-- Official IMD Track Waypoints & Bulletins Drawer -->
+        <div style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.78rem;">
+          
+          <!-- Observed Positions Timeline List -->
+          <div style="background: rgba(7,29,51,0.7); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.8rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(143,196,216,0.1); padding-bottom: 0.3rem;">
+              <span class="utility-label" style="color: #ff6b4a;">🔴 IMD OBSERVED TRACK POSITIONS</span>
+              <span id="imdObsCountBadge" style="color: var(--ice); font-weight: 600;">-- points</span>
+            </div>
+            <div id="imdObsListContainer" style="max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem;">
+              <span style="color: var(--mist);">Loading IMD observed records...</span>
+            </div>
+          </div>
+
+          <!-- Forecast Positions Timeline List -->
+          <div style="background: rgba(7,29,51,0.7); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.8rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(143,196,216,0.1); padding-bottom: 0.3rem;">
+              <span class="utility-label" style="color: #ffaa00;">🟠 IMD RSMC FORECAST HORIZONS</span>
+              <span id="imdFcstCountBadge" style="color: var(--ice); font-weight: 600;">-- points</span>
+            </div>
+            <div id="imdFcstListContainer" style="max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem;">
+              <span style="color: var(--mist);">Loading IMD forecast records...</span>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <script src="cyclones_dataset.js"></script>
+  <script src="shared_nav.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const API_BASE = window.location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8000';
+
+      // 1. Initialize Map with multiple basemap tile providers
+      const map = L.map('mainTrackMap', {
+        center: [20.0, 88.0],
+        zoom: 5,
+        zoomControl: true,
+        attributionControl: true
+      });
+
+      // Layer 1: Geoapify Dark Matter (Using configured API key — Clean dark ocean, no watermarks)
+      const geoapifyDark = L.tileLayer('https://maps.geoapify.com/v1/tile/dark-matter/{z}/{x}/{y}.png?apiKey=cb1_4du2_1_91bd7dbbc92f0b93255783be', {
+        maxZoom: 19,
+        attribution: '&copy; Geoapify, &copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Layer 2: Esri Dark Canvas (Free high-contrast dark ocean basemap)
+      const esriDark = L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 16,
+        attribution: '&copy; Esri, DeLorme, NAVTEQ'
+      });
+
+      // Layer 3: Esri World Ocean (Bathymetric Ocean Depths)
+      const esriOcean = L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 13,
+        attribution: '&copy; Esri, GEBCO, NOAA'
+      });
+
+      // Layer 4: Esri Satellite Imagery (True Earth Satellite)
+      const esriSatellite = L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18,
+        attribution: '&copy; Esri, Maxar, Earthstar Geographics'
+      });
+
+      // Layer 5: OpenStreetMap Standard
+      const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      });
+
+      // Layer 6: NASA GIBS MODIS Satellite
+      const nasaGibs = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg', {
+        maxZoom: 9,
+        attribution: '&copy; NASA EOSDIS GIBS'
+      });
+
+      // Base layers control
+      const baseMaps = {
+        "Geoapify Dark Ocean": geoapifyDark,
+        "Esri Dark Canvas": esriDark,
+        "Esri World Ocean": esriOcean,
+        "Esri Satellite Imagery": esriSatellite,
+        "OpenStreetMap Standard": osmStandard,
+        "NASA GIBS Satellite": nasaGibs
+      };
+
+      // Workstation Overlays
+      const trackLayer = L.layerGroup().addTo(map);
+      const forecastLayer = L.layerGroup().addTo(map);
+
+      // IMD Dedicated Overlays
+      const imdObsLayer = L.layerGroup().addTo(map);
+      const imdFcstLayer = L.layerGroup().addTo(map);
+      const imdCouLayer = L.layerGroup().addTo(map);
+      const imdWindLayer = L.layerGroup().addTo(map);
+
+      const overlayMaps = {
+        "Cyclone Best-Track (Historical)": trackLayer,
+        "AM-ConvGRU 24h Cone": forecastLayer,
+        "🔴 IMD Observed Best-Track": imdObsLayer,
+        "🟠 IMD RSMC Forecast Track": imdFcstLayer,
+        "🔷 IMD Cone of Uncertainty (COU)": imdCouLayer,
+        "🌪️ IMD Wind Warning Zones": imdWindLayer
+      };
+
+      L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(map);
+
+      let showCone = true;
+      document.getElementById('toggleForecastConeBtn').addEventListener('click', () => {
+        showCone = !showCone;
+        if (showCone) map.addLayer(forecastLayer);
+        else map.removeLayer(forecastLayer);
+      });
+
+      // 2. Click-to-probe real Open-Meteo endpoint
+      map.on('click', async (e) => {
+        const lat = e.latlng.lat.toFixed(2);
+        const lon = e.latlng.lng.toFixed(2);
+        const box = document.getElementById('weatherAtPointBox');
+        box.innerHTML = `<span style="color:var(--sky-blue);">PROBING ATMOSPHERE:</span> (${lat}°N, ${lon}°E)...`;
+
+        try {
+          const res = await fetch(`${API_BASE}/weather?lat=${lat}&lon=${lon}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const curr = data.current;
+          box.innerHTML = `<span style="color:var(--accent-cyan); font-weight:700;">OPEN-METEO:</span> Wind: ${curr.wind_speed_10m} km/h • Pres: ${curr.pressure_msl} hPa • Gust: ${curr.wind_gusts_10m} km/h`;
+          
+          L.popup().setLatLng(e.latlng).setContent(`
+            <div style="font-family:Inter,sans-serif; font-size:12px; line-height:1.5;">
+              <b style="color:#071D33; font-size:13px;">Open-Meteo Atmospheric Probe</b><br>
+              <b>Coordinates:</b> ${lat}°N, ${lon}°E<br>
+              <b>10m Wind Speed:</b> ${curr.wind_speed_10m} km/h<br>
+              <b>Peak Gusts:</b> ${curr.wind_gusts_10m} km/h<br>
+              <b>MSL Pressure:</b> ${curr.pressure_msl} hPa<br>
+              <b>Precipitation:</b> ${curr.precipitation} mm<br>
+              <span style="font-size:10px; color:#555;">Observation Time: ${curr.time} UTC</span>
+            </div>
+          `).openOn(map);
+        } catch (err) {
+          box.innerHTML = `<span style="color:#ff8888;">PROBE FAILED:</span> Unable to reach Open-Meteo for (${lat}, ${lon})`;
+        }
+      });
+
+      // 3. Render Historical Storm Track & AM-ConvGRU Cone
+      function renderStormTrack(storm) {
+        if (!storm || !storm.records || storm.records.length === 0) return;
+        trackLayer.clearLayers();
+        forecastLayer.clearLayers();
+
+        document.getElementById('activeStormTitle').textContent = `${storm.name.toUpperCase()} (${storm.year}) • ${storm.agency}`;
+
+        const coords = storm.records.map(r => [r.lat, r.lon]);
+        const poly = L.polyline(coords, { color: '#65BDD1', weight: 3.5, opacity: 0.9 }).addTo(trackLayer);
+
+        storm.records.forEach((r, idx) => {
+          if (idx % 2 === 0 || idx === storm.records.length - 1) {
+            L.circleMarker([r.lat, r.lon], { radius: 4, color: '#287CA8', fillColor: '#8FC4D8', fillOpacity: 0.8 }).addTo(trackLayer)
+              .bindTooltip(`<b>${r.time}</b><br>Wind: ${r.wind_kmh} km/h • Pres: ${r.pressure_hpa} hPa`);
+          }
+        });
+
+        const lastRec = storm.records[Math.floor(storm.records.length * 0.7)] || storm.records[0];
+        L.circleMarker([lastRec.lat, lastRec.lon], { radius: 10, color: '#F1F8FA', fillColor: '#65BDD1', fillOpacity: 0.9, weight: 3 }).addTo(trackLayer);
+
+        if (storm.forecast && storm.forecast.length > 0) {
+          const fCoords = [[lastRec.lat, lastRec.lon]];
+          storm.forecast.forEach(f => {
+            fCoords.push([f.lat, f.lon]);
+            L.circle([f.lat, f.lon], {
+              radius: f.cone_radius_km * 1000,
+              color: '#65BDD1',
+              fillColor: '#287CA8',
+              fillOpacity: 0.12,
+              weight: 1,
+              dashArray: '3, 4'
+            }).addTo(forecastLayer);
+
+            L.circleMarker([f.lat, f.lon], {
+              radius: 5,
+              color: '#8FC4D8',
+              fillColor: '#071D33',
+              fillOpacity: 0.9,
+              weight: 2
+            }).addTo(forecastLayer)
+              .bindTooltip(`<b>AM-ConvGRU +${f.lead_hours}h Forecast</b><br>Wind: ${f.wind_kmh} km/h • Pres: ${f.pressure_hpa} hPa<br>Lat: ${f.lat}°N, Lon: ${f.lon}°E<br>Error Cone: ±${f.cone_radius_km} km`);
+          });
+          L.polyline(fCoords, { color: '#8FC4D8', weight: 2.5, dashArray: '6, 6' }).addTo(forecastLayer);
+        }
+
+        map.fitBounds(poly.getBounds(), { padding: [50, 50] });
+
+        const sc = document.getElementById('pageScrubber');
+        const scTime = document.getElementById('pageScrubberTime');
+        sc.max = storm.records.length - 1;
+        sc.value = Math.floor(storm.records.length * 0.7);
+        scTime.textContent = lastRec.time;
+
+        sc.oninput = (e) => {
+          const i = parseInt(e.target.value, 10);
+          const r = storm.records[i];
+          scTime.textContent = `${r.time} (${r.wind_kmh} km/h, ${r.pressure_hpa} hPa)`;
+        };
+      }
+
+      // =======================================================================
+      // 4. OFFICIAL IMD SERVICES INTEGRATION (Track, COU, Wind Warnings)
+      // =======================================================================
+      let rawImdWindData = null;
+
+      async function fetchAndRenderImdTrack() {
+        try {
+          const res = await fetch(`${API_BASE}/api/imd/cyclone-track`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const trackData = await res.json();
+
+          imdObsLayer.clearLayers();
+          imdFcstLayer.clearLayers();
+
+          const obsList = document.getElementById('imdObsListContainer');
+          const fcstList = document.getElementById('imdFcstListContainer');
+          obsList.innerHTML = '';
+          fcstList.innerHTML = '';
+
+          // 4a. Observed Track (Solid Red/Ruby line with detailed markers)
+          const obsPoints = trackData.observed_track || [];
+          document.getElementById('imdObsCountBadge').textContent = `${obsPoints.length} verified observations`;
+
+          if (obsPoints.length > 0) {
+            const obsCoords = obsPoints.map(p => [p.latitude, p.longitude]);
+            L.polyline(obsCoords, { color: '#ff4d4d', weight: 3.5, opacity: 0.95 }).addTo(imdObsLayer);
+
+            obsPoints.forEach((p, idx) => {
+              const marker = L.circleMarker([p.latitude, p.longitude], {
+                radius: idx === obsPoints.length - 1 ? 8 : 4.5,
+                color: '#ffffff',
+                fillColor: '#ff3333',
+                fillOpacity: 0.95,
+                weight: idx === obsPoints.length - 1 ? 2.5 : 1.5
+              }).addTo(imdObsLayer);
+
+              const tooltipHtml = `
+                <div style="font-family:Inter,sans-serif; font-size:11px; line-height:1.4;">
+                  <b style="color:#d9534f;">🔴 IMD OBSERVED POSITION</b><br>
+                  <b>Cyclone:</b> ${p.cyclone_name || 'NIO SYSTEM'}<br>
+                  <b>Time:</b> ${p.date_time} (UTC)<br>
+                  <b>Position:</b> ${p.latitude.toFixed(2)}°N, ${p.longitude.toFixed(2)}°E<br>
+                  <b>Category:</b> ${p.category}<br>
+                  <b>Wind:</b> ${p.mean_msw_kmph} km/h (${p.msw_kt} kt) • Range: ${p.msw_range_kmph || '--'} km/h
+                </div>
+              `;
+              marker.bindTooltip(tooltipHtml);
+
+              // Add to timeline list
+              const item = document.createElement('div');
+              item.style.cssText = 'padding: 0.25rem 0.4rem; border-radius: 0.3rem; background: rgba(255,77,77,0.1); cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+              item.innerHTML = `<span><b>${p.date_time}</b> • ${p.category}</span><span style="color:#ff8888;">${p.mean_msw_kmph} km/h</span>`;
+              item.onclick = () => { map.setView([p.latitude, p.longitude], 7); marker.openTooltip(); };
+              obsList.appendChild(item);
+            });
+          }
+
+          // 4b. Forecast Track (Dashed Orange line with waypoint markers)
+          const fcstPoints = trackData.forecast_track || [];
+          document.getElementById('imdFcstCountBadge').textContent = `${fcstPoints.length} forecast horizons`;
+
+          if (fcstPoints.length > 0) {
+            // Connect latest observation to first forecast point
+            const fcstCoords = [];
+            if (obsPoints.length > 0) {
+              const lastObs = obsPoints[obsPoints.length - 1];
+              fcstCoords.push([lastObs.latitude, lastObs.longitude]);
+            }
+            fcstPoints.forEach(p => fcstCoords.push([p.latitude, p.longitude]));
+
+            L.polyline(fcstCoords, { color: '#ffaa00', weight: 2.8, dashArray: '5, 5', opacity: 0.95 }).addTo(imdFcstLayer);
+
+            fcstPoints.forEach(p => {
+              const marker = L.circleMarker([p.latitude, p.longitude], {
+                radius: 5,
+                color: '#ffffff',
+                fillColor: '#ffaa00',
+                fillOpacity: 0.9,
+                weight: 1.5
+              }).addTo(imdFcstLayer);
+
+              const tooltipHtml = `
+                <div style="font-family:Inter,sans-serif; font-size:11px; line-height:1.4;">
+                  <b style="color:#f0ad4e;">🟠 IMD RSMC FORECAST HORIZON</b><br>
+                  <b>Cyclone:</b> ${p.cyclone_name || 'NIO SYSTEM'}<br>
+                  <b>Lead Time:</b> ${p.date_time} (+${p.hour}h)<br>
+                  <b>Position:</b> ${p.latitude.toFixed(2)}°N, ${p.longitude.toFixed(2)}°E<br>
+                  <b>Category:</b> ${p.category}<br>
+                  <b>Intensity:</b> ${p.mean_msw_kmph} km/h (${p.msw_kt} kt)
+                </div>
+              `;
+              marker.bindTooltip(tooltipHtml);
+
+              const item = document.createElement('div');
+              item.style.cssText = 'padding: 0.25rem 0.4rem; border-radius: 0.3rem; background: rgba(255,170,0,0.1); cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+              item.innerHTML = `<span><b>${p.date_time} (+${p.hour}h)</b> • ${p.category}</span><span style="color:#ffcc66;">${p.mean_msw_kmph} km/h</span>`;
+              item.onclick = () => { map.setView([p.latitude, p.longitude], 7); marker.openTooltip(); };
+              fcstList.appendChild(item);
+            });
+          }
+
+        } catch (err) {
+          console.error('Error fetching IMD cyclone track:', err);
+        }
+      }
+
+      async function fetchAndRenderImdCou() {
+        try {
+          const res = await fetch(`${API_BASE}/api/imd/cyclone-cone`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const couData = await res.json();
+
+          imdCouLayer.clearLayers();
+          if (couData.geometry && couData.geometry.coordinates && couData.geometry.coordinates.length > 0) {
+            const geojsonLayer = L.geoJSON(couData.geometry, {
+              style: {
+                color: '#65BDD1',
+                weight: 2,
+                dashArray: '5, 5',
+                fillColor: '#287CA8',
+                fillOpacity: 0.18
+              }
+            }).addTo(imdCouLayer);
+
+            geojsonLayer.bindTooltip(`
+              <div style="font-family:Inter,sans-serif; font-size:11px;">
+                <b style="color:#65BDD1;">🔷 IMD CONE OF UNCERTAINTY (COU)</b><br>
+                <b>System:</b> ${couData.cyclone_name}<br>
+                <b>Bulletin:</b> ${couData.bulletin_time}<br>
+                <span style="font-size:9.5px; color:#aaa;">Probabilistic ~68% forecast vortex center error envelope</span>
+              </div>
+            `);
+          }
+        } catch (err) {
+          console.error('Error fetching IMD COU:', err);
+        }
+      }
+
+      async function fetchAndRenderImdWindWarnings() {
+        try {
+          const res = await fetch(`${API_BASE}/api/imd/cyclone-wind`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          rawImdWindData = await res.json();
+          renderFilteredWindLayers();
+        } catch (err) {
+          console.error('Error fetching IMD wind warnings:', err);
+        }
+      }
+
+      function renderFilteredWindLayers() {
+        if (!rawImdWindData || !rawImdWindData.features) return;
+        imdWindLayer.clearLayers();
+
+        const activeT = {
+          '27kt': document.getElementById('chkWind27').checked,
+          '34kt': document.getElementById('chkWind34').checked,
+          '50kt': document.getElementById('chkWind50').checked,
+          '64kt': document.getElementById('chkWind64').checked
+        };
+
+        const filteredFeatures = rawImdWindData.features.filter(f => {
+          const k = (f.properties && f.properties.threshold_key) || '34kt';
+          return activeT[k] !== false;
+        });
+
+        if (filteredFeatures.length > 0) {
+          L.geoJSON({ type: 'FeatureCollection', features: filteredFeatures }, {
+            style: (feature) => {
+              const p = feature.properties || {};
+              return {
+                color: p.color || '#ff8800',
+                weight: 1.8,
+                fillColor: p.fillColor || '#ff8800',
+                fillOpacity: p.fillOpacity || 0.22
+              };
+            },
+            onEachFeature: (feature, layer) => {
+              const p = feature.properties || {};
+              layer.bindTooltip(`
+                <div style="font-family:Inter,sans-serif; font-size:11px;">
+                  <b style="color:${p.color || '#ff8800'};">🌪️ ${p.threshold_label || 'IMD Wind Warning'}</b><br>
+                  <b>Cyclone:</b> ${p.cyclone_name}<br>
+                  <b>Bulletin Time:</b> ${p.bulletin_time}<br>
+                  <span style="font-size:9.5px; color:#aaa;">Official IMD marine gale warning boundary</span>
+                </div>
+              `);
+            }
+          }).addTo(imdWindLayer);
+        }
+      }
+
+      // Layer Toggles Handlers
+      function setupLayerToggles() {
+        const bindToggle = (chkId, chipId, layerGroup) => {
+          const chk = document.getElementById(chkId);
+          const chip = document.getElementById(chipId);
+          if (!chk || !chip) return;
+          chk.addEventListener('change', () => {
+            if (chk.checked) {
+              map.addLayer(layerGroup);
+              chip.classList.add('active');
+            } else {
+              map.removeLayer(layerGroup);
+              chip.classList.remove('active');
+            }
+          });
+        };
+
+        bindToggle('chkImdObserved', 'chipImdObserved', imdObsLayer);
+        bindToggle('chkImdForecast', 'chipImdForecast', imdFcstLayer);
+        bindToggle('chkImdCou', 'chipImdCou', imdCouLayer);
+        bindToggle('chkImdWind', 'chipImdWind', imdWindLayer);
+
+        ['chkWind27', 'chkWind34', 'chkWind50', 'chkWind64'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.addEventListener('change', (e) => {
+              const chip = e.target.closest('.imd-layer-toggle-chip');
+              if (chip) chip.classList.toggle('active', e.target.checked);
+              renderFilteredWindLayers();
+            });
+          }
+        });
+
+        const btnRefresh = document.getElementById('btnRefreshImdData');
+        if (btnRefresh) {
+          btnRefresh.addEventListener('click', async () => {
+            btnRefresh.textContent = 'SYNCING...';
+            btnRefresh.disabled = true;
+            await Promise.all([fetchAndRenderImdTrack(), fetchAndRenderImdCou(), fetchAndRenderImdWindWarnings()]);
+            btnRefresh.textContent = 'SYNC IMD DATA';
+            btnRefresh.disabled = false;
+          });
+        }
+      }
+
+      setupLayerToggles();
+
+      // Initial Fetch of Official IMD Layers
+      fetchAndRenderImdTrack();
+      fetchAndRenderImdCou();
+      fetchAndRenderImdWindWarnings();
+
+      // Invalidation & Auto-resize to ensure Leaflet renders properly
+      setTimeout(() => { map.invalidateSize(); }, 200);
+      setTimeout(() => { map.invalidateSize(); }, 600);
+      window.addEventListener('resize', () => { map.invalidateSize(); });
+
+      // Robust Storm Selection Handling
+      function getInitialStorm() {
+        if (window.CYCLONEX && window.CYCLONEX.selectedStormData) {
+          return window.CYCLONEX.selectedStormData;
+        }
+        const key = localStorage.getItem('cyclonex_active_storm') || 'REMAL_2024';
+        if (window.CYCLONEX_DATASET && window.CYCLONEX_DATASET[key]) {
+          return window.CYCLONEX_DATASET[key];
+        }
+        if (window.CYCLONEX_DATASET) {
+          const firstKey = Object.keys(window.CYCLONEX_DATASET)[0];
+          return window.CYCLONEX_DATASET[firstKey];
+        }
+        return null;
+      }
+
+      const initialStorm = getInitialStorm();
+      if (initialStorm) {
+        renderStormTrack(initialStorm);
+      }
+
+      window.addEventListener('cyclonex:stormChanged', (e) => {
+        renderStormTrack(e.detail.storm);
+        map.invalidateSize();
+      });
+    });
+  </script>
+</body>
+</html>

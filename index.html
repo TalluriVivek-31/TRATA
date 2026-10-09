@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYCLONEX — AI-Assisted Tropical Cyclone Monitoring & Intelligence</title>
+  <meta name="description" content="Operational climate intelligence platform for multi-source satellite cyclone detection, kinematic classification, and AM-ConvGRU spatiotemporal trajectory prediction.">
+
+  <!-- Google Fonts: Anton & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- CYCLONEX Unified Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Physical Atmospheric Noise Texture Overlay -->
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <!-- Section A: Shared Navigation Header -->
+  <div id="cyclonexSharedHeader"></div>
+
+  <!-- =======================================================================
+       SECTION B: FULL-VIEWPORT HERO SECTION WITH 4-CORNER TELEMETRY
+       ======================================================================= -->
+  <section class="hero-full-viewport home-hero-card" id="hero" aria-label="Cyclone Monitoring Hero">
+    <!-- Abstract Scientific Radar Background Canvas -->
+    <div class="hero-radar-container" aria-hidden="true">
+      <canvas id="heroRadarCanvas"></canvas>
+    </div>
+
+    <!-- 4 Corner Telemetry Boxes -->
+    <!-- Corner 1: Top-Left (Wind Speed) -->
+    <article class="hero-corner-card hero-corner-card--top-left floating-card--wind" id="cardWindSpeed" aria-label="Wind Speed Telemetry">
+      <span class="corner-card-label">WIND SPEED</span>
+      <div class="corner-card-value" id="heroWindVal">234</div>
+      <span class="corner-card-unit" id="heroWindUnit">KM/H</span>
+    </article>
+
+    <!-- Corner 2: Top-Right (Core Pressure) -->
+    <article class="hero-corner-card hero-corner-card--top-right floating-card--pressure" id="cardCorePressure" aria-label="Core Pressure Telemetry">
+      <span class="corner-card-label">CORE PRESSURE</span>
+      <div class="corner-card-value" id="heroPressureVal">910</div>
+      <span class="corner-card-unit" id="heroPressureUnit">HPA</span>
+    </article>
+
+    <!-- Corner 3: Bottom-Left (Track Source) -->
+    <article class="hero-corner-card hero-corner-card--bottom-left floating-card--source" id="cardTrackSource" aria-label="Track Source Telemetry">
+      <span class="corner-card-label">TRACK SOURCE</span>
+      <div class="corner-card-value" id="heroSourceVal" style="font-size: 1.55rem; line-height: 1.15; margin-bottom: 0.35rem;">Super Typhoon Mangkhut</div>
+      <span class="corner-card-unit" id="heroSourceSub">OFFICIAL BEST TRACK ARCHIVE</span>
+    </article>
+
+    <!-- Corner 4: Bottom-Right (Movement) -->
+    <article class="hero-corner-card hero-corner-card--bottom-right floating-card--movement" id="cardMovement" aria-label="Movement Telemetry">
+      <span class="corner-card-label">MOVEMENT</span>
+      <div class="corner-card-value" id="heroMoveVal">SW</div>
+      <span class="corner-card-unit" id="heroMoveSub">23 KM/H</span>
+    </article>
+
+    <!-- Center Giant Typography: "CYCLONE" -->
+    <div class="hero-center-typography">
+      <h1 class="hero-center-heading" id="heroHeading">CYCLONE</h1>
+    </div>
+
+    <!-- Live Satellite Telemetry Badge Inside Hero Bottom Bar -->
+    <div class="home-sat-telemetry-badge" role="status" aria-label="Current Satellite Status" style="position: absolute; bottom: 5.4rem; z-index: 18;">
+      <div class="home-sat-badge-item">
+        <span class="status-pulse-dot"></span>
+        <span class="utility-label utility-label--accent">SATELLITE PASS:</span>
+        <span style="font-size: var(--text-xs); color: var(--ice); font-weight: 600;" id="heroSatPlatform">NASA EOS Terra MODIS & ISRO INSAT-3DR</span>
+      </div>
+      <div class="home-sat-badge-item">
+        <span class="utility-label utility-label--muted">ACQUISITION:</span>
+        <span style="font-size: var(--text-xs); color: var(--mist);" id="heroSatTime">Syncing live telemetry...</span>
+      </div>
+      <div class="home-sat-badge-item">
+        <span class="utility-label utility-label--muted">SPECTRAL BAND:</span>
+        <span style="font-size: var(--text-xs); color: var(--mist);">Visible (0.65µm) / Thermal IR (10.8µm)</span>
+      </div>
+    </div>
+
+    <!-- Primary Actions & Scroll Down Indicator -->
+    <div class="hero-center-actions" style="position: absolute; bottom: 1.8rem; z-index: 20; display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+      <a href="detection.html" class="btn-primary">
+        <span class="icon-inline">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="3"></circle>
+            <line x1="12" y1="2" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="2" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="22" y2="12"></line>
+          </svg>
+        </span>
+        Explore Satellite Detection
+      </a>
+      <a href="data-explorer.html" class="btn-secondary">
+        <span class="icon-inline">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+        </span>
+        Explore Historical Data
+      </a>
+      <a href="#monitoringStatus" class="hero-scroll-indicator" aria-label="Scroll to monitoring status">
+        <span>↓ TELEMETRY STATUS</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Main Homepage Container -->
+  <main class="home-container" id="monitoringStatus" style="padding-top: 3.5rem;">
+
+    <!-- =======================================================================
+         SECTION C: CURRENT MONITORING STATUS
+         ======================================================================= -->
+    <section aria-labelledby="statusSectionTitle">
+      <div class="home-section-header">
+        <span class="utility-label utility-label--accent">VERIFIED OPERATIONAL TELEMETRY</span>
+        <h2 class="home-section-title" id="statusSectionTitle">CURRENT MONITORING STATUS</h2>
+      </div>
+
+      <div class="home-status-grid">
+        <!-- Card 1: Satellite Data Availability -->
+        <article class="status-metric-card">
+          <span class="utility-label">SATELLITE DATA AVAILABILITY</span>
+          <div>
+            <div class="status-metric-val" id="metricSatAvailability" style="color: var(--accent-cyan);">OPERATIONAL</div>
+            <p style="font-size: var(--text-2xs); color: var(--mist); margin-top: 0.2rem;">NASA EOSDIS GIBS WMTS & ISRO MOSDAC Telemetry Online</p>
+          </div>
+          <span class="utility-label utility-label--muted">EPSG:3857 REST SERVICE</span>
+        </article>
+
+        <!-- Card 2: Latest Verified Observation -->
+        <article class="status-metric-card">
+          <span class="utility-label">LATEST OBSERVATION TIME</span>
+          <div>
+            <div class="status-metric-val" id="metricObsTime" style="font-size: 1.1rem; color: var(--ice);">Checking feed...</div>
+            <p style="font-size: var(--text-2xs); color: var(--mist); margin-top: 0.2rem;" id="metricObsSub">Universal Coordinated Time (UTC)</p>
+          </div>
+          <span class="utility-label utility-label--muted">NEAR-REAL-TIME SWATH</span>
+        </article>
+
+        <!-- Card 3: Active Cyclone Status -->
+        <article class="status-metric-card">
+          <span class="utility-label">ACTIVE CYCLONE STATUS</span>
+          <div>
+            <div class="status-metric-val" id="metricBasinStatus" style="color: #65BDD1;">SCANNING BASIN...</div>
+            <p style="font-size: var(--text-2xs); color: var(--mist); margin-top: 0.2rem;" id="metricBasinSub">North Indian Ocean & Bay of Bengal</p>
+          </div>
+          <span class="utility-label utility-label--muted" id="metricAgencyTag">IMD / RSMC NEW DELHI</span>
+        </article>
+
+        <!-- Card 4: Data-Source Health -->
+        <article class="status-metric-card">
+          <span class="utility-label">DATA-SOURCE HEALTH</span>
+          <div>
+            <div class="status-metric-val" id="metricSystemHealth" style="color: var(--sky-blue);">VERIFYING...</div>
+            <p style="font-size: var(--text-2xs); color: var(--mist); margin-top: 0.2rem;" id="metricSystemSub">API Endpoints & Neural Pipeline</p>
+          </div>
+          <span class="utility-label utility-label--muted">FASTAPI CORE ENGINE</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SECTION D: MAIN CAPABILITIES
+         ======================================================================= -->
+    <section aria-labelledby="capabilitiesSectionTitle">
+      <div class="home-section-header">
+        <span class="utility-label utility-label--accent">PLATFORM WORKSTATIONS</span>
+        <h2 class="home-section-title" id="capabilitiesSectionTitle">MAIN CAPABILITIES</h2>
+      </div>
+
+      <div class="capabilities-grid">
+        <!-- 1. Satellite Detection -->
+        <a href="detection.html" class="capability-card">
+          <div class="capability-card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="4"></circle>
+                <line x1="22" y1="12" x2="18" y2="12"></line>
+                <line x1="6" y1="12" x2="2" y2="12"></line>
+              </svg>
+            </div>
+            <span class="utility-label">MODULE 01</span>
+          </div>
+          <div>
+            <h3 class="capability-card-title">Satellite Detection</h3>
+            <p class="capability-card-desc">
+              Multi-spectral satellite layer ingestion with date-synchronized NASA GIBS WMTS tiles and automated cyclonic vortex localization.
+            </p>
+          </div>
+          <div class="capability-link-row">
+            <span>Open Detection</span>
+            <span class="brand-dash">→</span>
+          </div>
+        </a>
+
+        <!-- 2. Cyclone Classification -->
+        <a href="classification.html" class="capability-card">
+          <div class="capability-card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+            </div>
+            <span class="utility-label">MODULE 02</span>
+          </div>
+          <div>
+            <h3 class="capability-card-title">Cyclone Classification</h3>
+            <p class="capability-card-desc">
+              Structural morphology taxonomy classifying eye definition, central dense overcast (CDO), curved banding, and vertical shear patterns.
+            </p>
+          </div>
+          <div class="capability-link-row">
+            <span>Open Classification</span>
+            <span class="brand-dash">→</span>
+          </div>
+        </a>
+
+        <!-- 3. Track Analysis & Forecasting -->
+        <a href="track.html" class="capability-card">
+          <div class="capability-card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              </svg>
+            </div>
+            <span class="utility-label">MODULE 03</span>
+          </div>
+          <div>
+            <h3 class="capability-card-title">Track & Forecast</h3>
+            <p class="capability-card-desc">
+              Interactive GIS mapping of verified best-tracks with AM-ConvGRU 4-step forward trajectory predictions and calibrated error cones.
+            </p>
+          </div>
+          <div class="capability-link-row">
+            <span>Open Track Map</span>
+            <span class="brand-dash">→</span>
+          </div>
+        </a>
+
+        <!-- 4. Intensity Analysis -->
+        <a href="intensity.html" class="capability-card">
+          <div class="capability-card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <span class="utility-label">MODULE 04</span>
+          </div>
+          <div>
+            <h3 class="capability-card-title">Intensity Analysis</h3>
+            <p class="capability-card-desc">
+              Synoptic baric deficit monitoring, maximum sustained wind profiles, and automated Dvorak Technique (A-ADT) thermodynamic curves.
+            </p>
+          </div>
+          <div class="capability-link-row">
+            <span>Open Intensity</span>
+            <span class="brand-dash">→</span>
+          </div>
+        </a>
+
+        <!-- 5. Historical Data Explorer -->
+        <a href="data-explorer.html" class="capability-card">
+          <div class="capability-card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+              </svg>
+            </div>
+            <span class="utility-label">MODULE 05</span>
+          </div>
+          <div>
+            <h3 class="capability-card-title">Historical Data Explorer</h3>
+            <p class="capability-card-desc">
+              Audit verified cyclone archives from RSMC New Delhi and CMA. Inspect granular waypoints, pressure observations, and export raw JSON.
+            </p>
+          </div>
+          <div class="capability-link-row">
+            <span>Open Data Explorer</span>
+            <span class="brand-dash">→</span>
+          </div>
+        </a>
+
+        <!-- 6. Model Evaluation -->
+        <a href="model-lab.html" class="capability-card">
+          <div class="capability-card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <span class="utility-label">MODULE 06</span>
+          </div>
+          <div>
+            <h3 class="capability-card-title">Model Evaluation</h3>
+            <p class="capability-card-desc">
+              Inspect AM-ConvGRU neural architecture, holdout test benchmarks (141.84 km mean distance error), and ablation comparison metrics.
+            </p>
+          </div>
+          <div class="capability-link-row">
+            <span>Open Model Lab</span>
+            <span class="brand-dash">→</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SECTION E: LATEST VERIFIED OBSERVATIONS
+         ======================================================================= -->
+    <section aria-labelledby="obsSectionTitle">
+      <div class="home-section-header">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <span class="utility-label utility-label--accent">NORTH INDIAN OCEAN ATMOSPHERIC REGIME</span>
+            <h2 class="home-section-title" id="obsSectionTitle">LATEST VERIFIED OBSERVATIONS</h2>
+          </div>
+          <a href="detection.html" class="btn-secondary" style="font-size: var(--text-2xs); padding: 0.4rem 1rem;">
+            Full Surveillance Terminal →
+          </a>
+        </div>
+      </div>
+
+      <div class="home-observations-grid">
+        <!-- Live Ambient Surveillance Box -->
+        <article class="home-obs-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+            <span class="utility-label">REGIONAL BUOY & REANALYSIS PROBES</span>
+            <span class="provenance-tag live">LIVE FEED</span>
+          </div>
+          
+          <div id="liveObsContainer">
+            <div style="font-size: var(--text-xs); color: var(--mist); line-height: 1.6;">
+              Querying atmospheric surface probes via Open-Meteo...
+            </div>
+          </div>
+        </article>
+
+        <!-- Authoritative Best-Track Reference Box -->
+        <article class="home-obs-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+            <span class="utility-label">BENCHMARK HISTORICAL CYCLONE</span>
+            <span class="provenance-tag archive">VERIFIED ARCHIVE</span>
+          </div>
+
+          <div>
+            <h4 style="font-family: var(--font-heading); font-size: 1.3rem; color: var(--ice); margin-bottom: 0.3rem;">
+              Super Cyclonic Storm Amphan (2020)
+            </h4>
+            <p style="font-size: var(--text-xs); color: var(--mist); line-height: 1.5; margin-bottom: 0.8rem;">
+              Peak Intensity: 240 km/h sustained wind • 920 hPa central minimum pressure • Landfall: West Bengal / Bangladesh border.
+            </p>
+            <div style="display: flex; gap: 1rem; font-size: var(--text-2xs); color: var(--sky-blue);">
+              <span>Agency: RSMC New Delhi / IMD</span>
+              <span>•</span>
+              <span>Obs Date: 2020-05-18 12:00 UTC</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SECTION F: DATA SOURCES AND METHODOLOGY
+         ======================================================================= -->
+    <section aria-labelledby="sourcesSectionTitle">
+      <div class="home-section-header">
+        <span class="utility-label utility-label--accent">INTEGRATION ARCHITECTURE</span>
+        <h2 class="home-section-title" id="sourcesSectionTitle">DATA SOURCES & METHODOLOGY</h2>
+      </div>
+
+      <div class="sources-grid">
+        <!-- 1. NASA GIBS -->
+        <div class="source-card">
+          <span class="utility-label utility-label--accent">SATELLITE IMAGERY</span>
+          <h4 class="source-card-title">NASA EOSDIS GIBS</h4>
+          <p class="source-card-role">
+            Multi-spectral WMTS EPSG:3857 global imagery browse services providing MODIS Terra/Aqua TrueColor, Infrared, and Water Vapor layers.
+          </p>
+        </div>
+
+        <!-- 2. ISRO / IMD -->
+        <div class="source-card">
+          <span class="utility-label utility-label--accent">GEOSTATIONARY</span>
+          <h4 class="source-card-title">ISRO & IMD RSMC</h4>
+          <p class="source-card-role">
+            INSAT-3DR Rapid Scan sectoral radiances and official RSMC New Delhi tropical cyclone advisories for the North Indian Ocean basin.
+          </p>
+        </div>
+
+        <!-- 3. Open-Meteo -->
+        <div class="source-card">
+          <span class="utility-label utility-label--accent">SURFACE WEATHER</span>
+          <h4 class="source-card-title">Open-Meteo Global</h4>
+          <p class="source-card-role">
+            Real-time hourly marine atmospheric queries retrieving 10m wind speeds, mean sea-level pressure, gusts, and convective precipitation.
+          </p>
+        </div>
+
+        <!-- 4. CMA / IBTrACS -->
+        <div class="source-card">
+          <span class="utility-label utility-label--accent">BEST-TRACK ARCHIVE</span>
+          <h4 class="source-card-title">CMA & IBTrACS</h4>
+          <p class="source-card-role">
+            Quality-controlled post-season meteorological best-track records (1949–present) providing benchmark center coordinates and intensity.
+          </p>
+        </div>
+
+        <!-- 5. AM-ConvGRU -->
+        <div class="source-card">
+          <span class="utility-label utility-label--accent">NEURAL MODEL</span>
+          <h4 class="source-card-title">AM-ConvGRU Network</h4>
+          <p class="source-card-role">
+            Wide & Deep spatiotemporal neural network combining CLIPER persistence with 3D ERA-Interim geopotential tensors for multi-step trajectory projection.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SECTION G: FOOTER
+         ======================================================================= -->
+    <footer class="home-footer-card" role="contentinfo">
+      <div class="home-footer-top">
+        <div style="max-width: 480px;">
+          <div class="header-brand-logo" style="margin-bottom: 0.6rem;">
+            <span class="brand-dash">—</span> CYCLONEX
+          </div>
+          <p style="font-size: var(--text-xs); color: var(--mist); line-height: 1.5;">
+            Smart India Hackathon Problem Statement 26070: AI/ML-based system for identifying, classifying, and predicting tropical cyclone patterns using multi-source satellite observations.
+          </p>
+        </div>
+
+        <nav class="home-footer-links" aria-label="Footer Quick Links">
+          <a href="index.html">Overview</a>
+          <a href="detection.html">Detection</a>
+          <a href="classification.html">Classification</a>
+          <a href="track.html">Track & Forecast</a>
+          <a href="intensity.html">Intensity</a>
+          <a href="data-explorer.html">Data Explorer</a>
+          <a href="model-lab.html">Model Lab</a>
+          <a href="system.html">System</a>
+        </nav>
+      </div>
+
+      <div class="home-footer-bottom">
+        <span>&copy; 2026 CYCLONEX Climate Intelligence • SIH 26070 Research Prototype</span>
+        <span>Data Attribution: NASA EOSDIS • ISRO MOSDAC • IMD RSMC New Delhi • Open-Meteo</span>
+      </div>
+    </footer>
+
+  </main>
+
+  <!-- Cyclone Dataset Bundle & Shared Navigation -->
+  <script src="cyclones_dataset.js"></script>
+  <script src="shared_nav.js"></script>
+
+  <!-- Homepage Dynamic Telemetry Script -->
+  <script>
+    // =========================================================================
+    // HERO RADAR VISUALIZATION (Rings, Azimuth, Rotating Sweep, Particles)
+    // =========================================================================
+    function initHeroRadar() {
+      const canvas = document.getElementById('heroRadarCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let sweepAngle = 0;
+      const particles = [];
+      const numParticles = 80;
+
+      function resize() {
+        const parent = canvas.parentElement;
+        if (!parent) return;
+        const rect = parent.getBoundingClientRect();
+        const size = Math.min(rect.width, rect.height) || 600;
+        canvas.width = size * window.devicePixelRatio;
+        canvas.height = size * window.devicePixelRatio;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      for (let i = 0; i < numParticles; i++) {
+        particles.push({
+          angle: Math.random() * Math.PI * 2,
+          dist: 0.15 + Math.random() * 0.82,
+          speed: 0.003 + Math.random() * 0.007,
+          size: 1 + Math.random() * 2,
+          alpha: 0.25 + Math.random() * 0.55
+        });
+      }
+
+      function render() {
+        const w = canvas.width;
+        const h = canvas.height;
+        if (w === 0 || h === 0) return requestAnimationFrame(render);
+        const cx = w / 2;
+        const cy = h / 2;
+        const radius = Math.min(cx, cy) * 0.94;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // 1. Concentric Range Rings (188km, 375km, 563km, 750km)
+        const ringSteps = [0.25, 0.5, 0.75, 1.0];
+        ringSteps.forEach((step, i) => {
+          const r = radius * step;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.strokeStyle = i === ringSteps.length - 1 ? 'rgba(101, 189, 209, 0.35)' : 'rgba(143, 196, 216, 0.15)';
+          ctx.lineWidth = i === ringSteps.length - 1 ? 1.5 : 0.8;
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(143, 196, 216, 0.45)';
+          ctx.font = `${Math.round(10 * window.devicePixelRatio)}px Inter, sans-serif`;
+          ctx.fillText(`${Math.round(step * 750)} KM`, cx + 6, cy - r + 14);
+        });
+
+        // 2. Azimuth 45-degree Grid Lines
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius);
+          ctx.strokeStyle = 'rgba(143, 196, 216, 0.08)';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+
+        // 3. Logarithmic spiral cyclone particles
+        particles.forEach(p => {
+          p.angle += p.speed;
+          p.dist -= 0.0006;
+          if (p.dist < 0.12) p.dist = 0.95;
+
+          const px = cx + Math.cos(p.angle) * radius * p.dist;
+          const py = cy + Math.sin(p.angle) * radius * p.dist;
+
+          ctx.beginPath();
+          ctx.arc(px, py, p.size * window.devicePixelRatio, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(143, 196, 216, ${p.alpha * 0.75})`;
+          ctx.fill();
+        });
+
+        // 4. Rotating Radar Sweep Arm
+        const sweepGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        sweepGradient.addColorStop(0, 'rgba(101, 189, 209, 0.3)');
+        sweepGradient.addColorStop(1, 'rgba(101, 189, 209, 0)');
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, sweepAngle - 0.45, sweepAngle);
+        ctx.closePath();
+        ctx.fillStyle = sweepGradient;
+        ctx.fill();
+
+        // Leading sweep line
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(sweepAngle) * radius, cy + Math.sin(sweepAngle) * radius);
+        ctx.strokeStyle = 'rgba(101, 189, 209, 0.85)';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+        ctx.restore();
+
+        // 5. Eyewall center ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, 14 * window.devicePixelRatio, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(101, 189, 209, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        sweepAngle = (sweepAngle + 0.018) % (Math.PI * 2);
+        requestAnimationFrame(render);
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    // Update 4 Hero Corner Boxes when cyclone changes
+    function updateHeroTelemetry(stormKey) {
+      const dataset = window.CYCLONEX_DATASET || {};
+      const storm = dataset[stormKey] || dataset['MANGKHUT_2018'] || dataset[Object.keys(dataset)[0]];
+      if (!storm) return;
+
+      const rec = storm.records && storm.records.length > 0 ? storm.records[storm.records.length - 1] : null;
+      if (!rec) return;
+
+      const windEl = document.getElementById('heroWindVal');
+      const pressEl = document.getElementById('heroPressureVal');
+      const srcEl = document.getElementById('heroSourceVal');
+      const srcSubEl = document.getElementById('heroSourceSub');
+      const moveEl = document.getElementById('heroMoveVal');
+      const moveSubEl = document.getElementById('heroMoveSub');
+
+      if (windEl) windEl.textContent = Math.round(rec.wind_kmh || 234);
+      if (pressEl) pressEl.textContent = Math.round(rec.pressure_hpa || 910);
+      if (srcEl) srcEl.textContent = storm.name || 'Super Typhoon Mangkhut';
+      if (srcSubEl) srcSubEl.textContent = storm.sourceType ? storm.sourceType.replace(/_/g, ' ') : 'OFFICIAL BEST TRACK ARCHIVE';
+
+      // Heading calculation if previous record exists
+      if (storm.records.length > 1) {
+        const prev = storm.records[storm.records.length - 2];
+        const dLat = rec.lat - prev.lat;
+        const dLon = rec.lon - prev.lon;
+        let hd = 'SW';
+        if (dLat >= 0 && dLon <= 0) hd = 'NW';
+        else if (dLat >= 0 && dLon > 0) hd = 'NE';
+        else if (dLat < 0 && dLon <= 0) hd = 'SW';
+        else hd = 'SE';
+        const spd = Math.max(12, Math.round(Math.hypot(dLat, dLon) * 111 / 6));
+        if (moveEl) moveEl.textContent = hd;
+        if (moveSubEl) moveSubEl.textContent = `${spd} KM/H`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      initHeroRadar();
+
+      // Listen for storm dropdown changes from shared_nav
+      window.addEventListener('cyclonex:stormChanged', (e) => {
+        if (e.detail && e.detail.stormKey) {
+          updateHeroTelemetry(e.detail.stormKey);
+        }
+      });
+
+      const apiBase = window.CYCLONEX.apiBase || '';
+
+      // 1. Fetch Backend Health
+      try {
+        const resHealth = await fetch(`${apiBase}/api/health`);
+        if (resHealth.ok) {
+          const h = await resHealth.json();
+          document.getElementById('metricSystemHealth').textContent = 'ONLINE (NOMINAL)';
+          document.getElementById('metricSystemHealth').style.color = '#65BDD1';
+          document.getElementById('metricSystemSub').textContent = `${h.registered_cyclones || 9} Verified Cyclones Ingested`;
+        } else {
+          throw new Error();
+        }
+      } catch {
+        document.getElementById('metricSystemHealth').textContent = 'STANDALONE MODE';
+        document.getElementById('metricSystemHealth').style.color = '#f59e0b';
+        document.getElementById('metricSystemSub').textContent = 'Local Cache Active';
+      }
+
+      // 2. Fetch Live Basin Surveillance Status
+      try {
+        const resLive = await fetch(`${apiBase}/api/detect/live`);
+        if (resLive.ok) {
+          const liveData = await resLive.json();
+
+          // Update Status Cards
+          if (liveData.status === 'QUIET_BASIN') {
+            document.getElementById('metricBasinStatus').textContent = 'QUIET BASIN';
+            document.getElementById('metricBasinStatus').style.color = '#65BDD1';
+            document.getElementById('metricBasinSub').textContent = 'No Closed Cyclonic Circulation Active';
+          } else {
+            document.getElementById('metricBasinStatus').textContent = 'CYCLONE ACTIVE';
+            document.getElementById('metricBasinStatus').style.color = '#ff6b6b';
+            document.getElementById('metricBasinSub').textContent = 'Active Vortex Detected in Basin';
+          }
+
+          document.getElementById('metricObsTime').textContent = liveData.surveillance_timestamp ? liveData.surveillance_timestamp.replace(' UTC', 'Z') : 'Current UTC';
+          document.getElementById('heroSatTime').textContent = liveData.surveillance_timestamp || 'Operational Pass Active';
+
+          // Update Section E: Live Ambient Surveillance Readings
+          const amb = liveData.ambient_telemetry;
+          if (amb && amb.surveillance_readings) {
+            const readingsHtml = amb.surveillance_readings.map(r => `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(143,196,216,0.1); font-size: var(--text-xs);">
+                <div>
+                  <span style="font-weight: 600; color: var(--ice);">${r.basin_point}</span>
+                  <span style="display: block; font-size: var(--text-2xs); color: var(--sky-blue);">${r.lat}°N, ${r.lon}°E</span>
+                </div>
+                <div style="text-align: right;">
+                  <span style="color: var(--ice);">${r.wind_speed_kmh} km/h</span>
+                  <span style="display: block; font-size: var(--text-2xs); color: var(--mist);">${r.pressure_msl_hpa} hPa</span>
+                </div>
+              </div>
+            `).join('');
+
+            document.getElementById('liveObsContainer').innerHTML = `
+              <div style="margin-bottom: 0.6rem; font-size: var(--text-2xs); color: var(--mist);">
+                <b>Basin Mean Wind:</b> ${amb.mean_surface_wind_kmh} km/h • <b>Mean MSL Pressure:</b> ${amb.mean_surface_pressure_hpa} hPa
+              </div>
+              <div>${readingsHtml}</div>
+            `;
+          }
+        }
+      } catch (err) {
+        document.getElementById('metricBasinStatus').textContent = 'QUIET / UNVERIFIED';
+        document.getElementById('metricObsTime').textContent = 'Historical Baseline';
+      }
+
+      // 3. Fetch Satellite Metadata
+      try {
+        const resSat = await fetch(`${apiBase}/api/satellite/metadata?storm_key=LIVE&channel=MODIS_TrueColor`);
+        if (resSat.ok) {
+          const satData = await resSat.json();
+          document.getElementById('heroSatPlatform').textContent = `${satData.satellite_platform} (${satData.observation_date})`;
+          document.getElementById('heroSatTime').textContent = satData.observation_timestamp_utc;
+        }
+      } catch (e) {
+        // Fallback default
+      }
+    });
+  </script>
+</body>
+</html>

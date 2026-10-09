@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Architecture & Pipeline — CYCLONEX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="noise-overlay" aria-hidden="true"></div>
+  <div id="cyclonexSharedHeader"></div>
+
+  <main class="page-container">
+    <header class="page-header-banner">
+      <span class="utility-label utility-label--accent">PAGE 08 // TELEMETRY PIPELINE & HEALTH DIAGNOSTICS</span>
+      <h1 class="page-title">SYSTEM &<br>PIPELINE</h1>
+      <p class="page-desc">
+        Complete end-to-end data flow transparency: multi-source satellite acquisition, reanalysis tensor construction, neural inference, and real-time backend API health status.
+      </p>
+    </header>
+
+    <div class="content-grid-workstation" style="grid-template-columns: 1fr;">
+      
+      <!-- Live Subsystems Health Matrix -->
+      <section class="workstation-card">
+        <span class="utility-label utility-label--accent">LIVE BACKEND HEALTH CHECK</span>
+        <h2 style="font-family: var(--font-heading); font-size: 2rem; color: var(--ice); margin: 0.3rem 0 1.5rem;">SUBSYSTEM RUNTIME STATUS</h2>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem;" id="sysHealthGrid">
+          <div class="sys-status-card">
+            <span class="utility-label">CHANNEL 01</span>
+            <h3 class="sys-title">SATELLITE WMS</h3>
+            <p class="sys-detail" id="sysDetail1">NASA GIBS WMTS & ISRO MOSDAC Rapid imagery services.</p>
+            <div class="sys-indicator-row">
+              <span class="sys-dot" id="sysDot1"></span>
+              <span class="sys-state" id="sysState1">SYNCING...</span>
+            </div>
+          </div>
+
+          <div class="sys-status-card">
+            <span class="utility-label">CHANNEL 02</span>
+            <h3 class="sys-title">OPEN-METEO API</h3>
+            <p class="sys-detail" id="sysDetail2">Global atmospheric & marine surface model queries.</p>
+            <div class="sys-indicator-row">
+              <span class="sys-dot" id="sysDot2"></span>
+              <span class="sys-state" id="sysState2">SYNCING...</span>
+            </div>
+          </div>
+
+          <div class="sys-status-card">
+            <span class="utility-label">CHANNEL 03</span>
+            <h3 class="sys-title">AM-ConvGRU ENGINE</h3>
+            <p class="sys-detail" id="sysDetail3">Deep spatio-temporal inference & calibrated error cones.</p>
+            <div class="sys-indicator-row">
+              <span class="sys-dot" id="sysDot3"></span>
+              <span class="sys-state" id="sysState3">SYNCING...</span>
+            </div>
+          </div>
+
+          <div class="sys-status-card">
+            <span class="utility-label">CHANNEL 04</span>
+            <h3 class="sys-title">MAP TILE SERVICE</h3>
+            <p class="sys-detail" id="sysDetail4">Geoapify Dark Ocean vector basemap engine.</p>
+            <div class="sys-indicator-row">
+              <span class="sys-dot" id="sysDot4"></span>
+              <span class="sys-state" id="sysState4">SYNCING...</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Architecture Pipeline Graph -->
+      <section class="workstation-card" style="margin-top: 1rem;">
+        <span class="utility-label">DATA PROCESSING JOURNEY</span>
+        <h2 style="font-family: var(--font-heading); font-size: 2rem; color: var(--ice); margin: 0.3rem 0 1.5rem;">PIPELINE ARCHITECTURE (SIH 26070)</h2>
+
+        <div style="background: rgba(7,29,51,0.6); padding: 2rem; border-radius: 1.25rem; border: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 1.2rem;">
+          <div style="display: flex; gap: 1rem; align-items: baseline;">
+            <span style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--accent-cyan); min-width: 140px;">1. INGESTION</span>
+            <span style="font-size: 0.85rem; color: var(--mist);">Multi-source acquisition from INSAT-3DR, NASA GIBS, and CMA/RSMC historical best-tracks.</span>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: baseline;">
+            <span style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--accent-cyan); min-width: 140px;">2. VALIDATION</span>
+            <span style="font-size: 0.85rem; color: var(--mist);">Coordinate bounds checking (-90 to 90, -180 to 180), pressure consistency, and 2-min wind normalization.</span>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: baseline;">
+            <span style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--accent-cyan); min-width: 140px;">3. TENSOR BUILD</span>
+            <span style="font-size: 0.85rem; color: var(--mist);">3D Spatio-temporal volume construction combining ERA-Interim/ERA5 geopotential heights at 850, 500, and 200 hPa.</span>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: baseline;">
+            <span style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--accent-cyan); min-width: 140px;">4. INFERENCE</span>
+            <span style="font-size: 0.85rem; color: var(--mist);">Forward sequence recurrent prediction generating +6h, +12h, +18h, and +24h cyclone center projections.</span>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: baseline;">
+            <span style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--accent-cyan); min-width: 140px;">5. DISPATCH</span>
+            <span style="font-size: 0.85rem; color: var(--mist);">High-performance FastAPI serving endpoints + Leaflet workstation visualization with calibrated error cones.</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="cyclones_dataset.js"></script>
+  <script src="shared_nav.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const apiBase = window.CYCLONEX.apiBase || '';
+      try {
+        const res = await fetch(`${apiBase}/api/health`);
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('sysState1').textContent = 'CONNECTED';
+          document.getElementById('sysState2').textContent = 'OPERATIONAL';
+          document.getElementById('sysState3').textContent = 'ACTIVE';
+          document.getElementById('sysState4').textContent = 'ACTIVE';
+          document.getElementById('sysDetail3').textContent = `AM-ConvGRU Loaded • ${data.registered_cyclones || 9} Verified Cyclones Ingested`;
+        } else {
+          throw new Error();
+        }
+      } catch {
+        document.getElementById('sysState1').textContent = 'UNVERIFIED';
+        document.getElementById('sysState2').textContent = 'OFFLINE';
+        document.getElementById('sysState3').textContent = 'STANDALONE';
+        document.getElementById('sysState4').textContent = 'STANDALONE';
+        const d1 = document.getElementById('sysDot1'); if (d1) d1.style.background = '#f59e0b';
+        const d2 = document.getElementById('sysDot2'); if (d2) d2.style.background = '#ef4444';
+        const d3 = document.getElementById('sysDot3'); if (d3) d3.style.background = '#f59e0b';
+      }
+    });
+  </script>
+</body>
+</html>

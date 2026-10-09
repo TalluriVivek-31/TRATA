@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Explorer & Provenance — CYCLONEX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="noise-overlay" aria-hidden="true"></div>
+  <div id="cyclonexSharedHeader"></div>
+
+  <main class="page-container">
+    <header class="page-header-banner">
+      <span class="utility-label utility-label--accent">PAGE 06 // AUDITABLE ARCHIVE & PROVENANCE INSPECTOR</span>
+      <h1 class="page-title">DATA<br>EXPLORER</h1>
+      <p class="page-desc">
+        Complete traceability of verified historical cyclone observations. Inspect raw spatiotemporal records, coordinates, units, and provenance from CMA and RSMC New Delhi archives.
+      </p>
+    </header>
+
+    <div class="content-grid-workstation" style="grid-template-columns: 1fr;">
+      
+      <!-- SECTION 1: VERIFIED BEST-TRACK RECORDS -->
+      <section class="workstation-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.8rem;">
+          <div>
+            <span class="utility-label">RECORD REGISTRY</span>
+            <h2 id="explorerStormTitle" style="font-family: var(--font-heading); font-size: 2rem; color: var(--ice);">ACTIVE ARCHIVE RECORDS</h2>
+          </div>
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <span id="recordCountBadge" class="storm-badge">52 OBSERVATIONS</span>
+            <button id="exportJsonBtn" class="live-api-sync-btn">EXPORT JSON</button>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto; max-height: 480px; border-radius: 1.25rem; border: 1px solid var(--border-subtle); background: rgba(7,29,51,0.6);">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: var(--text-xs); color: var(--mist);">
+            <thead style="background: rgba(11,45,77,0.8); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--border-accent);">
+              <tr>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">TIMESTAMP (UTC)</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">LATITUDE</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">LONGITUDE</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">PRESSURE (hPa)</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">WIND (KM/H)</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">DATA TYPE</th>
+              </tr>
+            </thead>
+            <tbody id="recordsTableBody">
+              <!-- Dynamically rendered -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 2: LIVE NOAA / JMA HIMAWARI INFRARED SATELLITE IMAGERY -->
+      <section class="workstation-card" style="margin-top: 2rem;" aria-labelledby="noaaSatTitle">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+              <span class="utility-label utility-label--accent">GENUINE NOAA / JMA SATELLITE INGESTION</span>
+              <span class="status-pulse-dot" id="noaaStatusDot"></span>
+            </div>
+            <h2 id="noaaSatTitle" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice); margin: 0;">
+              LIVE INFRARED SATELLITE IMAGERY & BASIN CROPS
+            </h2>
+            <p style="font-size: var(--text-xs); color: var(--mist); margin: 0.35rem 0 0 0; max-width: 800px; line-height: 1.5;">
+              Direct unenhanced infrared (10.4 &mu;m, Band 4) observations ingested from NOAA OSPO / JMA Himawari gateway. Background polling occurs every 10 minutes. Calibrated sub-disk crops focus on the Bay of Bengal, Arabian Sea limb, and Western North Pacific.
+            </p>
+          </div>
+          <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+            <span class="provenance-tag live" id="noaaFreshnessBadge">LIVE VERIFIED</span>
+            <button id="btnManualRefreshSat" class="live-api-sync-btn" title="Trigger background refresh from NOAA">
+              <span>REFRESH IMAGERY</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Telemetry & Status Bar -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.2rem; padding: 0.8rem 1rem; border-radius: 0.8rem; background: rgba(11,45,77,0.5); border: 1px solid var(--border-subtle);">
+          <div>
+            <span class="utility-label" style="display:block; margin-bottom:0.2rem;">OBSERVATION TIMESTAMP</span>
+            <span id="noaaObsTimestamp" style="font-size: var(--text-xs); color: var(--ice); font-weight:600;">Connecting...</span>
+          </div>
+          <div>
+            <span class="utility-label" style="display:block; margin-bottom:0.2rem;">RETRIEVAL TIMESTAMP</span>
+            <span id="noaaRetTimestamp" style="font-size: var(--text-xs); color: var(--mist);">Connecting...</span>
+          </div>
+          <div>
+            <span class="utility-label" style="display:block; margin-bottom:0.2rem;">SENSOR & BAND</span>
+            <span id="noaaSensorBand" style="font-size: var(--text-xs); color: var(--mist);">Himawari-9 IR Band 4 (10.4 &mu;m)</span>
+          </div>
+          <div>
+            <span class="utility-label" style="display:block; margin-bottom:0.2rem;">PIPELINE STATUS</span>
+            <span id="noaaPipelineStatus" style="font-size: var(--text-xs); color: var(--accent-cyan); font-weight:600;">ACTIVE (10m Polling)</span>
+          </div>
+        </div>
+
+        <!-- Region Selector Tabs -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.2rem; flex-wrap: wrap;">
+          <button class="noaa-region-tab active" data-region="full-disk" style="padding: 0.5rem 1rem; background: var(--accent-cyan); color: #04101d; border: none; border-radius: 0.5rem; font-size: var(--text-xs); font-weight: 600; cursor: pointer;">
+            FULL DISK (720x720)
+          </button>
+          <button class="noaa-region-tab" data-region="bay-of-bengal" style="padding: 0.5rem 1rem; background: rgba(11,45,77,0.8); color: var(--mist); border: 1px solid var(--border-subtle); border-radius: 0.5rem; font-size: var(--text-xs); font-weight: 600; cursor: pointer;">
+            BAY OF BENGAL CROP
+          </button>
+          <button class="noaa-region-tab" data-region="arabian-sea" style="padding: 0.5rem 1rem; background: rgba(11,45,77,0.8); color: var(--mist); border: 1px solid var(--border-subtle); border-radius: 0.5rem; font-size: var(--text-xs); font-weight: 600; cursor: pointer;">
+            ARABIAN SEA CROP
+          </button>
+          <button class="noaa-region-tab" data-region="western-pacific" style="padding: 0.5rem 1rem; background: rgba(11,45,77,0.8); color: var(--mist); border: 1px solid var(--border-subtle); border-radius: 0.5rem; font-size: var(--text-xs); font-weight: 600; cursor: pointer;">
+            WESTERN PACIFIC CROP
+          </button>
+        </div>
+
+        <!-- Imagery Display Container -->
+        <div style="display: grid; grid-template-columns: minmax(320px, 1fr) 300px; gap: 1.5rem; align-items: start; flex-wrap: wrap;">
+          <div style="position: relative; background: #010810; border-radius: 1rem; border: 1px solid var(--border-subtle); overflow: hidden; min-height: 380px; display: flex; align-items: center; justify-content: center;">
+            <div id="noaaImageLoader" style="position: absolute; color: var(--accent-cyan); font-size: var(--text-xs); font-weight: 600; display: none;">
+              RETRIEVING OBSERVATION FROM BACKEND...
+            </div>
+            <img id="noaaSatelliteDisplay" src="/api/satellite/latest.png" alt="Live NOAA Himawari Infrared Satellite Image" style="width: 100%; max-width: 600px; height: auto; display: block; border-radius: 0.5rem; margin: 0 auto; box-shadow: 0 8px 32px rgba(0,0,0,0.6);" />
+          </div>
+
+          <!-- Region Details & Verification Box -->
+          <div style="background: rgba(7,29,51,0.6); padding: 1.25rem; border-radius: 1rem; border: 1px solid var(--border-subtle);">
+            <span class="utility-label" style="display: block; margin-bottom: 0.4rem;">SELECTED REGION</span>
+            <h3 id="noaaRegionName" style="font-family: var(--font-heading); font-size: 1.4rem; color: var(--ice); margin: 0 0 0.5rem 0;">Himawari Full Disk</h3>
+            <p id="noaaRegionDesc" style="font-size: var(--text-xs); color: var(--mist); line-height: 1.4; margin-bottom: 1rem;">
+              Entire geostationary full-disk observation (720x720, unenhanced IR channel 4) centered at 140.7&deg;E longitude.
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: var(--text-xs); margin-bottom: 1.2rem;">
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.3rem;">
+                <span style="color: var(--mist);">Crop Dimensions:</span>
+                <span id="noaaRegionDims" style="color: var(--ice); font-weight: 600;">720 &times; 720 px</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.3rem;">
+                <span style="color: var(--mist);">Geographic Coverage:</span>
+                <span id="noaaRegionGeo" style="color: var(--ice); font-weight: 500; text-align: right; max-width: 160px;">Full Geostationary Disk</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.3rem;">
+                <span style="color: var(--mist);">Data Integrity:</span>
+                <span style="color: #66e0a3; font-weight: 600;">Validated Magic Bytes</span>
+              </div>
+            </div>
+
+            <div style="padding: 0.75rem; border-radius: 0.6rem; background: rgba(11,45,77,0.7); border: 1px solid rgba(0,217,255,0.2); font-size: 0.75rem; color: var(--mist); line-height: 1.4;">
+              <strong style="color: var(--accent-cyan);">Scientifically Verified:</strong> Imagery is processed as genuine uncompressed PNG bytes directly from NOAA OSPO. Timestamps reflect actual satellite scan times.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: ISRO MOSDAC SATELLITE CATALOG DISCOVERY & INGESTION -->
+      <section class="workstation-card" style="margin-top: 2rem;" aria-labelledby="mosdacCatalogTitle">
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+              <span class="utility-label utility-label--accent">LIVE ISRO MOSDAC OPENSEARCH</span>
+              <span class="status-pulse-dot" id="mosdacStatusDot"></span>
+            </div>
+            <h2 id="mosdacCatalogTitle" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice); margin: 0;">
+              SATELLITE ARCHIVAL CATALOG
+            </h2>
+            <p style="font-size: var(--text-xs); color: var(--mist); margin: 0.4rem 0 0; max-width: 780px;">
+              Direct live discovery via <code>https://mosdac.gov.in/apios/datasets.json</code>. Query genuine INSAT-3DR satellite observations (SST, calibrated multi-spectral radiance, wind vectors). Metadata search is open; downloading raw binary <code>.h5</code> files requires an authorized ISRO account.
+            </p>
+          </div>
+          <div style="text-align: right;">
+            <span class="provenance-tag live" id="mosdacGatewayBadge">GATEWAY ONLINE</span>
+          </div>
+        </div>
+
+        <!-- Filter Controls Bar -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; background: rgba(7,29,51,0.7); padding: 1.2rem; border-radius: 1rem; border: 1px solid var(--border-subtle); margin-bottom: 1.4rem;">
+          <div>
+            <label for="mosdacDatasetSelect" class="utility-label" style="display: block; margin-bottom: 0.35rem;">SATELLITE PRODUCT</label>
+            <select id="mosdacDatasetSelect" class="global-storm-select" style="width: 100%;">
+              <option value="3RIMG_L2B_SST" selected>3RIMG_L2B_SST — INSAT-3DR Sea Surface Temp (4km)</option>
+              <option value="3RIMG_L1B_STD">3RIMG_L1B_STD — INSAT-3DR Calibrated Radiance</option>
+              <option value="3RIMG_L2B_AWD">3RIMG_L2B_AWD — INSAT-3DR Wind Vectors</option>
+              <option value="3RIMG_L2B_HEM">3RIMG_L2B_HEM — INSAT-3DR Hydro-Estimator Rain</option>
+            </select>
+          </div>
+          <div>
+            <label for="mosdacStartDate" class="utility-label" style="display: block; margin-bottom: 0.35rem;">START DATE (UTC)</label>
+            <input type="text" id="mosdacStartDate" placeholder="YYYY-MM-DD (e.g. 2024-05-24)" style="width: 100%; padding: 0.55rem 0.8rem; background: rgba(11,45,77,0.8); border: 1px solid var(--border-subtle); border-radius: 0.6rem; color: var(--ice); font-size: var(--text-xs);">
+          </div>
+          <div>
+            <label for="mosdacEndDate" class="utility-label" style="display: block; margin-bottom: 0.35rem;">END DATE (UTC)</label>
+            <input type="text" id="mosdacEndDate" placeholder="YYYY-MM-DD (e.g. 2024-05-27)" style="width: 100%; padding: 0.55rem 0.8rem; background: rgba(11,45,77,0.8); border: 1px solid var(--border-subtle); border-radius: 0.6rem; color: var(--ice); font-size: var(--text-xs);">
+          </div>
+          <div>
+            <label for="mosdacCountSelect" class="utility-label" style="display: block; margin-bottom: 0.35rem;">PAGE SIZE</label>
+            <select id="mosdacCountSelect" class="global-storm-select" style="width: 100%;">
+              <option value="5">5 observations</option>
+              <option value="10" selected>10 observations</option>
+              <option value="25">25 observations</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <button id="btnQueryMosdac" class="btn-primary" style="width: 100%; height: 2.6rem;">
+              <span>QUERY MOSDAC</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Query Feedback Banner -->
+        <div id="mosdacQueryBanner" style="display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 1rem; border-radius: 0.8rem; background: rgba(11,45,77,0.5); border: 1px solid var(--border-subtle); font-size: var(--text-xs); color: var(--mist); margin-bottom: 1rem;">
+          <span id="mosdacCatalogCountText">Ready to query official ISRO OpenSearch gateway.</span>
+          <span id="mosdacAuthNote" style="color: var(--accent-cyan);">Open Metadata Mode (No credentials required for search)</span>
+        </div>
+
+        <!-- Dynamic MOSDAC File Results Table -->
+        <div style="overflow-x: auto; max-height: 440px; border-radius: 1.25rem; border: 1px solid var(--border-subtle); background: rgba(7,29,51,0.6);">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: var(--text-xs); color: var(--mist);">
+            <thead style="background: rgba(11,45,77,0.8); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--border-accent);">
+              <tr>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">GENUINE SATELLITE FILE IDENTIFIER</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">OBSERVATION WINDOW (UTC)</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">GEOGRAPHIC COVERAGE</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; white-space: nowrap;">DOWNLOAD ACCESS</th>
+              </tr>
+            </thead>
+            <tbody id="mosdacResultsTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; padding: 2rem; color: var(--mist);">
+                  Click "QUERY MOSDAC" to discover genuine satellite observations from SAC-ISRO.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      <!-- SECTION 4: NASA SCIENTIFIC DATA & CLIMATOLOGY EXPLORER -->
+      <section class="workstation-card" style="margin-top: 2rem;" aria-labelledby="nasaDataTitle">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+              <span class="utility-label utility-label--accent">GENUINE NASA SCIENTIFIC TELEMETRY</span>
+              <span class="status-pulse-dot" style="background: var(--accent-cyan);"></span>
+            </div>
+            <h2 id="nasaDataTitle" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice); margin: 0;">
+              NASA POWER & EARTHDATA CMR DISCOVERY
+            </h2>
+            <p style="font-size: var(--text-xs); color: var(--mist); margin: 0.35rem 0 0 0; max-width: 800px; line-height: 1.5;">
+              Direct integration with <b>NASA POWER Climatology & Meteorology API</b> (hourly MERRA-2 assimilation: surface winds, MSL pressure, 2m temp, and relative humidity) and <b>NASA Earthdata CMR</b> (Common Metadata Repository discovery for AIRS soundings and CYGNSS ocean surface wind vectors).
+            </p>
+          </div>
+          <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+            <span class="provenance-tag live" id="nasaAuthBadge">OPEN DATA (NO KEY REQUIRED)</span>
+          </div>
+        </div>
+
+        <!-- NASA POWER Query Controls -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label for="nasaLatInput" class="utility-label" style="display: block; margin-bottom: 0.35rem;">LATITUDE (°N/°S)</label>
+            <input type="number" id="nasaLatInput" value="21.6" step="0.1" style="width: 100%; padding: 0.55rem 0.8rem; background: rgba(11,45,77,0.8); border: 1px solid var(--border-subtle); border-radius: 0.6rem; color: var(--ice); font-size: var(--text-xs);">
+          </div>
+          <div>
+            <label for="nasaLonInput" class="utility-label" style="display: block; margin-bottom: 0.35rem;">LONGITUDE (°E/°W)</label>
+            <input type="number" id="nasaLonInput" value="89.2" step="0.1" style="width: 100%; padding: 0.55rem 0.8rem; background: rgba(11,45,77,0.8); border: 1px solid var(--border-subtle); border-radius: 0.6rem; color: var(--ice); font-size: var(--text-xs);">
+          </div>
+          <div>
+            <label for="nasaDateInput" class="utility-label" style="display: block; margin-bottom: 0.35rem;">OBSERVATION DATE</label>
+            <input type="text" id="nasaDateInput" value="2024-05-26" placeholder="YYYY-MM-DD" style="width: 100%; padding: 0.55rem 0.8rem; background: rgba(11,45,77,0.8); border: 1px solid var(--border-subtle); border-radius: 0.6rem; color: var(--ice); font-size: var(--text-xs);">
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <button id="btnQueryNasaPower" class="btn-primary" style="width: 100%; height: 2.6rem;">
+              <span>QUERY NASA POWER</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- NASA POWER Summary Cards -->
+        <div id="nasaPowerSummaryGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.8rem; margin-bottom: 1.2rem;">
+          <div style="background: rgba(11,45,77,0.5); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.8rem;">
+            <span class="utility-label" style="display: block; margin-bottom: 0.2rem;">10m MAX WIND</span>
+            <span id="powerMaxWind" style="font-size: var(--text-base); color: var(--accent-cyan); font-weight: 700;">-- km/h</span>
+          </div>
+          <div style="background: rgba(11,45,77,0.5); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.8rem;">
+            <span class="utility-label" style="display: block; margin-bottom: 0.2rem;">MIN SURFACE PRESSURE</span>
+            <span id="powerMinPres" style="font-size: var(--text-base); color: var(--ice); font-weight: 700;">-- hPa</span>
+          </div>
+          <div style="background: rgba(11,45,77,0.5); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.8rem;">
+            <span class="utility-label" style="display: block; margin-bottom: 0.2rem;">MEAN 2m AIR TEMP</span>
+            <span id="powerMeanTemp" style="font-size: var(--text-base); color: var(--mist); font-weight: 700;">-- °C</span>
+          </div>
+          <div style="background: rgba(11,45,77,0.5); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.8rem;">
+            <span class="utility-label" style="display: block; margin-bottom: 0.2rem;">RELATIVE HUMIDITY</span>
+            <span id="powerMeanRh" style="font-size: var(--text-base); color: var(--mist); font-weight: 700;">-- %</span>
+          </div>
+        </div>
+
+        <!-- NASA Earthdata CMR Collections Quick Search -->
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 1.2rem; margin-top: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.6rem;">
+            <div>
+              <span class="utility-label">NASA CMR SOUNDER & SCATTEROMETER DISCOVERY</span>
+              <h3 style="font-family: var(--font-heading); font-size: 1.2rem; color: var(--ice); margin: 0.2rem 0 0;">AIRS & CYGNSS MISSION CATALOG</h3>
+            </div>
+            <div style="display: flex; gap: 0.6rem;">
+              <button id="btnSearchCmrAirs" class="live-api-sync-btn" style="font-size: var(--text-2xs);">DISCOVER AIRS SOUNDINGS</button>
+              <button id="btnSearchCmrCygnss" class="live-api-sync-btn" style="font-size: var(--text-2xs);">DISCOVER CYGNSS WINDS</button>
+            </div>
+          </div>
+          <div id="cmrResultsList" style="font-size: var(--text-xs); color: var(--mist); background: rgba(7,29,51,0.6); padding: 0.8rem; border-radius: 0.8rem; border: 1px solid var(--border-subtle); max-height: 180px; overflow-y: auto;">
+            Click above to search open NASA Earthdata CMR collections for cyclone scientific missions.
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: OFFICIAL IMD DISTRICT-WISE RAINFALL INTELLIGENCE -->
+      <section class="workstation-card" style="margin-top: 2rem;" aria-labelledby="imdRainfallTitle">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+              <span class="utility-label utility-label--accent">OFFICIAL IMD METEOROLOGICAL TELEMETRY</span>
+              <span id="imdRainfallFreshnessBadge" class="provenance-tag live">IMD VERIFIED</span>
+            </div>
+            <h2 id="imdRainfallTitle" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice); margin: 0;">
+              DISTRICT-WISE RAINFALL & DEPARTURE ANALYSIS
+            </h2>
+            <p style="font-size: var(--text-xs); color: var(--mist); margin: 0.35rem 0 0 0; max-width: 820px; line-height: 1.5;">
+              Ingested from official India Meteorological Department (IMD) National Weather Forecasting Centre endpoint (<code>https://api.imd.gov.in/api/v1/districtrainfall</code>). Features daily, weekly, cumulative, and monthly observations with official departure classification categories.
+            </p>
+          </div>
+          <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+            <button id="btnRefreshImdRainfall" class="live-api-sync-btn" title="Re-query official IMD rainfall gateway">
+              <span>SYNC IMD RAINFALL</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.8rem; margin-bottom: 1.2rem; align-items: end; background: rgba(11,45,77,0.4); padding: 1rem; border-radius: 0.8rem; border: 1px solid var(--border-subtle);">
+          <div>
+            <label for="imdDistrictSearch" class="utility-label" style="display: block; margin-bottom: 0.3rem;">SEARCH DISTRICT OR STATE:</label>
+            <input type="text" id="imdDistrictSearch" placeholder="e.g. Kolkata, South 24 Parganas, Balasore, Chennai..." style="width: 100%; padding: 0.55rem 0.8rem; background: rgba(7,29,51,0.8); border: 1px solid var(--border-subtle); border-radius: 0.6rem; color: var(--ice); font-size: var(--text-xs);">
+          </div>
+          <div>
+            <label for="imdPeriodSelect" class="utility-label" style="display: block; margin-bottom: 0.3rem;">AGGREGATION TIMEFRAME:</label>
+            <select id="imdPeriodSelect" style="width: 100%; padding: 0.55rem 0.8rem; background: rgba(7,29,51,0.8); border: 1px solid var(--border-subtle); border-radius: 0.6rem; color: var(--ice); font-size: var(--text-xs);">
+              <option value="daily" selected>Daily Rainfall (24h Actual vs Normal)</option>
+              <option value="weekly">Weekly Cumulative</option>
+              <option value="cumulative">Seasonal Cumulative</option>
+              <option value="monthly">Monthly Cumulative</option>
+            </select>
+          </div>
+          <div>
+            <label for="imdCategoryFilter" class="utility-label" style="display: block; margin-bottom: 0.3rem;">IMD DEPARTURE FILTER:</label>
+            <select id="imdCategoryFilter" style="width: 100%; padding: 0.55rem 0.8rem; background: rgba(7,29,51,0.8); border: 1px solid var(--border-subtle); border-radius: 0.6rem; color: var(--ice); font-size: var(--text-xs);">
+              <option value="ALL">All Categories</option>
+              <option value="LE">Large Excess (&ge; +60%)</option>
+              <option value="E">Excess (+20% to +59%)</option>
+              <option value="N">Normal (-19% to +19%)</option>
+              <option value="D">Deficient (-59% to -20%)</option>
+              <option value="LD">Large Deficient (-99% to -60%)</option>
+              <option value="NR">No Rain (-100%)</option>
+            </select>
+          </div>
+          <div>
+            <button id="btnResetRainfallFilter" class="live-api-sync-btn" style="height: 2.3rem;">RESET</button>
+          </div>
+        </div>
+
+        <!-- Comparison Bar Chart for Selected District -->
+        <div id="districtDetailCard" style="background: rgba(7,29,51,0.85); border: 1px solid var(--border-subtle); border-radius: 1rem; padding: 1.2rem; margin-bottom: 1.2rem; display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; align-items: center;">
+          <div>
+            <span class="utility-label utility-label--accent">SELECTED DISTRICT INSPECTION</span>
+            <h3 id="selDistrictName" style="font-family: var(--font-heading); font-size: 1.6rem; color: var(--ice); margin: 0.2rem 0;">KOLKATA (ID: 164)</h3>
+            <div id="selDistrictState" style="color: var(--mist); font-size: 0.78rem; margin-bottom: 0.6rem;">West Bengal • Observation: 25-05-2024</div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.4rem;">
+              <span id="selDistrictCatBadge" class="provenance-tag" style="background: rgba(40,167,69,0.2); border: 1px solid #28a745; color: #5dd55d; font-size: 0.7rem;">LE (LARGE EXCESS)</span>
+              <span id="selDistrictDepText" style="color: var(--ice); font-weight: 600; font-size: 0.85rem;">+195.2% Departure</span>
+            </div>
+          </div>
+
+          <!-- Rainfall Actual vs Normal Visual Comparison Gauges -->
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;">
+                <span style="color: var(--mist);">Actual Rainfall:</span>
+                <b id="gaugeActualVal" style="color: var(--accent-cyan); font-size: 0.85rem;">12.4 mm</b>
+              </div>
+              <div style="width: 100%; height: 10px; background: rgba(11,45,77,0.8); border-radius: 5px; overflow: hidden;">
+                <div id="gaugeActualBar" style="width: 75%; height: 100%; background: linear-gradient(90deg, #287ca8, #65bdd1); border-radius: 5px; transition: width 0.4s ease;"></div>
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 0.25rem;">
+                <span style="color: var(--mist);">Normal Climatological Baseline:</span>
+                <b id="gaugeNormalVal" style="color: var(--ice); font-size: 0.85rem;">4.2 mm</b>
+              </div>
+              <div style="width: 100%; height: 10px; background: rgba(11,45,77,0.8); border-radius: 5px; overflow: hidden;">
+                <div id="gaugeNormalBar" style="width: 25%; height: 100%; background: rgba(143,196,216,0.6); border-radius: 5px; transition: width 0.4s ease;"></div>
+              </div>
+            </div>
+            <div style="font-size: 0.68rem; color: var(--mist); margin-top: 0.2rem;">
+              Note: IMD departure percentage is calculated as <code>((Actual - Normal) / Normal) * 100</code>.
+            </div>
+          </div>
+        </div>
+
+        <!-- Sortable District Rainfall Table -->
+        <div style="overflow-x: auto; max-height: 440px; border-radius: 1rem; border: 1px solid var(--border-subtle); background: rgba(7,29,51,0.6);">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: var(--text-xs); color: var(--mist);">
+            <thead style="background: rgba(11,45,77,0.9); position: sticky; top: 0; z-index: 10; border-bottom: 1px solid var(--border-accent);">
+              <tr>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; cursor: pointer;" id="thDistId">OBJ_ID ⬍</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; cursor: pointer;" id="thDistName">DISTRICT ⬍</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600;">STATE</th>
+                <th style="padding: 0.75rem 1rem; color: var(--accent-cyan); font-weight: 600; cursor: pointer;" id="thDistActual">ACTUAL (mm) ⬍</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; cursor: pointer;" id="thDistNormal">NORMAL (mm) ⬍</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; cursor: pointer;" id="thDistDep">DEPARTURE % ⬍</th>
+                <th style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600;">OFFICIAL IMD CATEGORY</th>
+                <th style="padding: 0.75rem 1rem; color: var(--mist); font-weight: 600;">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="imdRainfallTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Official IMD Category Legend Scale -->
+        <div style="margin-top: 1rem; padding: 0.8rem 1rem; border-radius: 0.8rem; background: rgba(11,45,77,0.4); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem; font-size: 0.7rem;">
+          <span class="utility-label" style="color: var(--accent-cyan);">IMD DEPARTURE CRITERIA:</span>
+          <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+            <span><b style="color: #28a745;">● LE</b> Large Excess (&ge; 60%)</span>
+            <span><b style="color: #5dd55d;">● E</b> Excess (20% to 59%)</span>
+            <span><b style="color: #65BDD1;">● N</b> Normal (-19% to 19%)</span>
+            <span><b style="color: #f0ad4e;">● D</b> Deficient (-59% to -20%)</span>
+            <span><b style="color: #d9534f;">● LD</b> Large Deficient (-99% to -60%)</span>
+            <span><b style="color: #808080;">● NR</b> No Rain (-100%)</span>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <script src="cyclones_dataset.js"></script>
+  <script src="shared_nav.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let currentActiveStorm = null;
+
+      function renderTable(storm) {
+        if (!storm || !storm.records) return;
+        currentActiveStorm = storm;
+
+        document.getElementById('explorerStormTitle').textContent = `${storm.name.toUpperCase()} (${storm.year}) • ${storm.agency}`;
+        document.getElementById('recordCountBadge').textContent = `${storm.records.length} VERIFIED OBSERVATIONS`;
+
+        const tbody = document.getElementById('recordsTableBody');
+        tbody.innerHTML = '';
+
+        storm.records.forEach((r, idx) => {
+          const row = document.createElement('tr');
+          row.style.borderBottom = '1px solid rgba(143,196,216,0.08)';
+          row.style.backgroundColor = idx % 2 === 0 ? 'rgba(7,29,51,0.4)' : 'transparent';
+          row.innerHTML = `
+            <td style="padding: 0.6rem 1rem; color: var(--ice); font-weight: 500; white-space: nowrap;">${r.time}</td>
+            <td style="padding: 0.6rem 1rem; white-space: nowrap;">${r.lat.toFixed(2)}°N</td>
+            <td style="padding: 0.6rem 1rem; white-space: nowrap;">${r.lon.toFixed(2)}°E</td>
+            <td style="padding: 0.6rem 1rem; color: var(--accent-cyan); font-weight: 600; white-space: nowrap;">${r.pressure_hpa}</td>
+            <td style="padding: 0.6rem 1rem; color: var(--sky-blue); font-weight: 600; white-space: nowrap;">${r.wind_kmh}</td>
+            <td style="padding: 0.6rem 1rem; white-space: nowrap;">
+              <span class="utility-label utility-label--accent">OBSERVED WAYPOINT</span>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      document.getElementById('exportJsonBtn').addEventListener('click', () => {
+        if (!currentActiveStorm) return;
+        const blob = new Blob([JSON.stringify(currentActiveStorm, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentActiveStorm.name.replace(/\s+/g, '_')}_dataset.json`;
+        a.click();
+      });
+
+      // =======================================================================
+      // LIVE MOSDAC OPENSEARCH QUERY HANDLER
+      // =======================================================================
+      const btnQueryMosdac = document.getElementById('btnQueryMosdac');
+      const mosdacDatasetSelect = document.getElementById('mosdacDatasetSelect');
+      const mosdacStartDate = document.getElementById('mosdacStartDate');
+      const mosdacEndDate = document.getElementById('mosdacEndDate');
+      const mosdacCountSelect = document.getElementById('mosdacCountSelect');
+      const mosdacTableBody = document.getElementById('mosdacResultsTableBody');
+      const mosdacCountText = document.getElementById('mosdacCatalogCountText');
+      const mosdacAuthNote = document.getElementById('mosdacAuthNote');
+
+      async function queryMosdacCatalog() {
+        btnQueryMosdac.disabled = true;
+        btnQueryMosdac.innerHTML = '<span>QUERYING GATEWAY...</span>';
+        mosdacCountText.textContent = 'Connecting to official ISRO MOSDAC OpenSearch gateway...';
+        mosdacTableBody.innerHTML = `
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 2rem; color: var(--sky-blue);">
+              Connecting to https://mosdac.gov.in/apios/datasets.json...
+            </td>
+          </tr>
+        `;
+
+        const datasetId = mosdacDatasetSelect.value;
+        const start = mosdacStartDate.value.trim();
+        const end = mosdacEndDate.value.trim();
+        const count = mosdacCountSelect.value;
+
+        const params = new URLSearchParams({ dataset_id: datasetId, count: count });
+        if (start) params.append('start_time', start);
+        if (end) params.append('end_time', end);
+
+        const apiBase = window.CYCLONEX.apiBase || '';
+
+        try {
+          const res = await fetch(`${apiBase}/api/mosdac/search?${params.toString()}`);
+          const data = await res.json();
+
+          if (res.ok && data.status === 'SUCCESS') {
+            const total = data.pagination.total_results_in_catalog;
+            const sizeMb = data.pagination.total_size_mb;
+            mosdacCountText.textContent = `Found ${total.toLocaleString()} total genuine records in ISRO MOSDAC catalog (${(sizeMb/1024).toFixed(1)} GB total archive). Showing latest ${data.entries.length} items.`;
+            mosdacAuthNote.textContent = data.download_access.auth_configured ? 'Authenticated Download Ready' : 'Open Metadata Discovery (Account required for .h5 binaries)';
+
+            if (!data.entries || data.entries.length === 0) {
+              mosdacTableBody.innerHTML = `
+                <tr>
+                  <td colspan="4" style="text-align: center; padding: 2rem; color: var(--mist);">
+                    No matching satellite products found for the specified date range. Try broadening date bounds.
+                  </td>
+                </tr>
+              `;
+              return;
+            }
+
+            mosdacTableBody.innerHTML = '';
+            data.entries.forEach((entry, idx) => {
+              const tr = document.createElement('tr');
+              tr.style.borderBottom = '1px solid rgba(143,196,216,0.08)';
+              tr.style.backgroundColor = idx % 2 === 0 ? 'rgba(7,29,51,0.4)' : 'transparent';
+
+              const box = entry.bounding_box || {};
+              const coverageStr = box.west ? `${box.south}°S to ${box.north}°N • ${box.west}°W to ${box.east}°E` : 'Indian Ocean Basin Synoptic Grid';
+
+              tr.innerHTML = `
+                <td style="padding: 0.75rem 1rem; color: var(--ice); font-weight: 600; font-family: monospace; font-size: 0.75rem;">
+                  <span style="color: var(--accent-cyan); display: block; margin-bottom: 0.2rem;">HDF5 ARCHIVE</span>
+                  ${entry.identifier}
+                </td>
+                <td style="padding: 0.75rem 1rem; color: var(--mist); font-size: 0.76rem; white-space: nowrap;">
+                  ${entry.observation_window || entry.updated_utc || 'Archival Pass'}
+                </td>
+                <td style="padding: 0.75rem 1rem; color: var(--sky-blue); font-size: 0.74rem;">
+                  ${coverageStr}
+                </td>
+                <td style="padding: 0.75rem 1rem; white-space: nowrap;">
+                  <a href="${entry.enclosure_link || 'https://mosdac.gov.in'}" target="_blank" rel="noopener" class="provenance-tag archive" style="text-decoration: none; font-size: 0.65rem;" title="Requires registered ISRO MOSDAC login">
+                    MOSDAC PORTAL ↗
+                  </a>
+                </td>
+              `;
+              mosdacTableBody.appendChild(tr);
+            });
+          } else {
+            mosdacCountText.textContent = `Gateway Error: ${data.message || 'Unable to retrieve records'}`;
+            mosdacTableBody.innerHTML = `
+              <tr>
+                <td colspan="4" style="text-align: center; padding: 2rem; color: #ff9999;">
+                  ${data.message || 'Error communicating with ISRO MOSDAC service.'}
+                </td>
+              </tr>
+            `;
+          }
+        } catch (err) {
+          mosdacCountText.textContent = 'Connection error: Unable to contact CYCLONEX backend or MOSDAC gateway.';
+          mosdacTableBody.innerHTML = `
+            <tr>
+              <td colspan="4" style="text-align: center; padding: 2rem; color: #ff9999;">
+                Network error: Ensure backend server is running and internet connection is active.
+              </td>
+            </tr>
+          `;
+        } finally {
+          btnQueryMosdac.disabled = false;
+          btnQueryMosdac.innerHTML = '<span>QUERY MOSDAC</span>';
+        }
+      }
+
+      if (btnQueryMosdac) {
+        btnQueryMosdac.addEventListener('click', queryMosdacCatalog);
+      }
+
+      // =====================================================================
+      // NOAA SATELLITE IMAGERY CLIENT INTERFACE
+      // =====================================================================
+      const noaaImg = document.getElementById('noaaSatelliteDisplay');
+      const noaaLoader = document.getElementById('noaaImageLoader');
+      const noaaObsTimestamp = document.getElementById('noaaObsTimestamp');
+      const noaaRetTimestamp = document.getElementById('noaaRetTimestamp');
+      const noaaPipelineStatus = document.getElementById('noaaPipelineStatus');
+      const noaaFreshnessBadge = document.getElementById('noaaFreshnessBadge');
+      const noaaStatusDot = document.getElementById('noaaStatusDot');
+      const btnManualRefreshSat = document.getElementById('btnManualRefreshSat');
+      const noaaRegionName = document.getElementById('noaaRegionName');
+      const noaaRegionDesc = document.getElementById('noaaRegionDesc');
+      const noaaRegionDims = document.getElementById('noaaRegionDims');
+      const noaaRegionGeo = document.getElementById('noaaRegionGeo');
+      const regionTabs = document.querySelectorAll('.noaa-region-tab');
+
+      let currentRegion = 'full-disk';
+      let availableRegionsMeta = {};
+      const apiBase = window.CYCLONEX.apiBase || '';
+
+      async function updateSatelliteTelemetry() {
+        try {
+          const res = await fetch(`${apiBase}/api/satellite/status`);
+          if (!res.ok) throw new Error('Status route error');
+          const data = await res.json();
+
+
+          noaaObsTimestamp.textContent = data.observation_timestamp_utc || 'Scanning...';
+          noaaRetTimestamp.textContent = data.last_successful_retrieval_utc || 'Pending initial pass';
+          
+          if (data.has_valid_image) {
+            noaaPipelineStatus.textContent = data.is_stale ? 'STALE (RETRYING)' : 'ACTIVE (10m Polling)';
+            noaaPipelineStatus.style.color = data.is_stale ? '#ffaa00' : 'var(--accent-cyan)';
+            noaaFreshnessBadge.textContent = data.is_stale ? 'STALE CACHE' : 'LIVE VERIFIED';
+            noaaFreshnessBadge.className = data.is_stale ? 'provenance-tag archive' : 'provenance-tag live';
+            if (noaaStatusDot) noaaStatusDot.style.background = data.is_stale ? '#ffaa00' : 'var(--accent-cyan)';
+          } else {
+            noaaPipelineStatus.textContent = 'CONNECTING UPSTREAM';
+            noaaPipelineStatus.style.color = '#ff9999';
+            noaaFreshnessBadge.textContent = 'NOAA CONNECTING';
+            noaaFreshnessBadge.className = 'provenance-tag archive';
+          }
+        } catch (e) {
+          console.warn('Satellite telemetry check note:', e);
+        }
+      }
+
+      async function loadRegionMeta() {
+        try {
+          const res = await fetch(`${apiBase}/api/satellite/regions`);
+          if (res.ok) {
+            const data = await res.json();
+            availableRegionsMeta = data.regions || {};
+          }
+        } catch (e) {
+          console.warn('Failed to load region metadata:', e);
+        }
+      }
+
+      function switchRegion(regionKey) {
+        currentRegion = regionKey;
+        regionTabs.forEach(t => {
+          if (t.getAttribute('data-region') === regionKey) {
+            t.style.background = 'var(--accent-cyan)';
+            t.style.color = '#04101d';
+            t.style.border = 'none';
+          } else {
+            t.style.background = 'rgba(11,45,77,0.8)';
+            t.style.color = 'var(--mist)';
+            t.style.border = '1px solid var(--border-subtle)';
+          }
+        });
+
+        // Update image source
+        const targetUrl = regionKey === 'full-disk'
+          ? `${apiBase}/api/satellite/latest.png?t=${Date.now()}`
+          : `${apiBase}/api/satellite/regions/${regionKey}/latest.png?t=${Date.now()}`;
+
+        if (noaaLoader) noaaLoader.style.display = 'block';
+        noaaImg.src = targetUrl;
+        noaaImg.onload = () => { if (noaaLoader) noaaLoader.style.display = 'none'; };
+        noaaImg.onerror = () => {
+          if (noaaLoader) {
+            noaaLoader.textContent = 'IMAGERY TEMPORARILY UNAVAILABLE';
+            noaaLoader.style.display = 'block';
+          }
+        };
+
+        // Update details panel
+        const meta = availableRegionsMeta[regionKey];
+        if (meta) {
+          noaaRegionName.textContent = meta.name;
+          noaaRegionDesc.textContent = meta.description;
+          noaaRegionDims.textContent = meta.dimensions + ' px';
+          noaaRegionGeo.textContent = meta.geographic_coverage;
+        }
+      }
+
+      regionTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          const reg = tab.getAttribute('data-region');
+          switchRegion(reg);
+        });
+      });
+
+      if (btnManualRefreshSat) {
+        btnManualRefreshSat.addEventListener('click', async () => {
+          btnManualRefreshSat.disabled = true;
+          btnManualRefreshSat.innerHTML = '<span>FETCHING...</span>';
+          try {
+            await fetch(`${apiBase}/api/satellite/refresh`, { method: 'POST' });
+            await updateSatelliteTelemetry();
+            switchRegion(currentRegion);
+          } catch (e) {
+            console.error('Manual refresh error:', e);
+          } finally {
+            btnManualRefreshSat.disabled = false;
+            btnManualRefreshSat.innerHTML = '<span>REFRESH IMAGERY</span>';
+          }
+        });
+      }
+
+      // Initial execution
+      loadRegionMeta().then(() => {
+        updateSatelliteTelemetry();
+      });
+
+      // Poll satellite status every 30 seconds
+      setInterval(updateSatelliteTelemetry, 30000);
+
+      // -----------------------------------------------------------------------
+      // NASA Scientific Data Explorer Handlers (NASA POWER & Earthdata CMR)
+      // -----------------------------------------------------------------------
+      const btnQueryNasaPower = document.getElementById('btnQueryNasaPower');
+      const nasaLatInput = document.getElementById('nasaLatInput');
+      const nasaLonInput = document.getElementById('nasaLonInput');
+      const nasaDateInput = document.getElementById('nasaDateInput');
+      const powerMaxWind = document.getElementById('powerMaxWind');
+      const powerMinPres = document.getElementById('powerMinPres');
+      const powerMeanTemp = document.getElementById('powerMeanTemp');
+      const powerMeanRh = document.getElementById('powerMeanRh');
+
+      const btnSearchCmrAirs = document.getElementById('btnSearchCmrAirs');
+      const btnSearchCmrCygnss = document.getElementById('btnSearchCmrCygnss');
+      const cmrResultsList = document.getElementById('cmrResultsList');
+
+      if (btnQueryNasaPower) {
+        btnQueryNasaPower.addEventListener('click', async () => {
+          const lat = parseFloat(nasaLatInput.value);
+          const lon = parseFloat(nasaLonInput.value);
+          const date = nasaDateInput.value.trim();
+          btnQueryNasaPower.disabled = true;
+          btnQueryNasaPower.innerHTML = '<span>QUERYING NASA POWER...</span>';
+
+          try {
+            const res = await fetch(`${apiBase}/api/nasa/power/point?lat=${lat}&lon=${lon}&date=${date}`);
+            const data = await res.json();
+            if (data.status === 'SUCCESS' && data.summary) {
+              const s = data.summary;
+              powerMaxWind.textContent = s.max_wind_speed_10m_kmh !== null ? `${s.max_wind_speed_10m_kmh} km/h` : 'N/A';
+              powerMinPres.textContent = s.min_surface_pressure_hpa !== null ? `${s.min_surface_pressure_hpa} hPa` : 'N/A';
+              powerMeanTemp.textContent = s.mean_temperature_2m_c !== null ? `${s.mean_temperature_2m_c} °C` : 'N/A';
+              powerMeanRh.textContent = s.mean_relative_humidity_percent !== null ? `${s.mean_relative_humidity_percent} %` : 'N/A';
+            } else {
+              powerMaxWind.textContent = 'NO DATA';
+              powerMinPres.textContent = 'NO DATA';
+            }
+          } catch (err) {
+            console.error('NASA POWER query error:', err);
+          } finally {
+            btnQueryNasaPower.disabled = false;
+            btnQueryNasaPower.innerHTML = '<span>QUERY NASA POWER</span>';
+          }
+        });
+      }
+
+      async function queryCmrKeyword(kw) {
+        cmrResultsList.innerHTML = `<i>Querying NASA Earthdata CMR for "${kw}" collections...</i>`;
+        try {
+          const res = await fetch(`${apiBase}/api/nasa/cmr/collections?keyword=${kw}&page_size=6`);
+          const data = await res.json();
+          if (data.status === 'SUCCESS' && data.collections) {
+            let html = `<div style="font-weight: 600; color: var(--ice); margin-bottom: 0.4rem;">Found ${data.collections.length} NASA Collections for "${kw}":</div>`;
+            data.collections.forEach(c => {
+              html += `<div style="padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <b style="color: var(--accent-cyan);">${c.short_name || 'MISSION'}:</b> ${c.title} <span style="color: var(--mist); font-size: 0.7rem;">(${c.id})</span>
+              </div>`;
+            });
+            cmrResultsList.innerHTML = html;
+          } else {
+            cmrResultsList.textContent = 'No collections returned.';
+          }
+        } catch (err) {
+          cmrResultsList.textContent = `Error querying CMR: ${err.message}`;
+        }
+      }
+
+      if (btnSearchCmrAirs) {
+        btnSearchCmrAirs.addEventListener('click', () => queryCmrKeyword('AIRS'));
+      }
+      if (btnSearchCmrCygnss) {
+        btnSearchCmrCygnss.addEventListener('click', () => queryCmrKeyword('CYGNSS'));
+      }
+
+      // =======================================================================
+      // SECTION 4: OFFICIAL IMD DISTRICT-WISE RAINFALL HANDLERS
+      // =======================================================================
+      let rawImdDistricts = [];
+      let currentRainfallSort = { column: 'district_name', asc: true };
+
+      const imdRainfallTableBody = document.getElementById('imdRainfallTableBody');
+      const imdDistrictSearch = document.getElementById('imdDistrictSearch');
+      const imdPeriodSelect = document.getElementById('imdPeriodSelect');
+      const imdCategoryFilter = document.getElementById('imdCategoryFilter');
+      const btnResetRainfallFilter = document.getElementById('btnResetRainfallFilter');
+      const btnRefreshImdRainfall = document.getElementById('btnRefreshImdRainfall');
+
+      async function fetchImdRainfall() {
+        if (!imdRainfallTableBody) return;
+        imdRainfallTableBody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 2rem; color: var(--accent-cyan);">
+              Connecting to official IMD gateway (https://api.imd.gov.in/api/v1/districtrainfall)...
+            </td>
+          </tr>
+        `;
+
+        try {
+          const res = await fetch(`${apiBase}/api/imd/rainfall`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          rawImdDistricts = data.districts || [];
+          
+          const freshBadge = document.getElementById('imdRainfallFreshnessBadge');
+          if (freshBadge) {
+            freshBadge.textContent = data.data_mode === 'LIVE_IMD_GATEWAY' ? 'LIVE IMD GATEWAY' : 'IMD BEST BASELINE';
+            freshBadge.className = data.data_mode === 'LIVE_IMD_GATEWAY' ? 'provenance-tag live' : 'provenance-tag archive';
+          }
+
+          renderFilteredRainfallTable();
+          if (rawImdDistricts.length > 0) {
+            selectDistrictDetail(rawImdDistricts[0]);
+          }
+        } catch (err) {
+          imdRainfallTableBody.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 2rem; color: #ff8888;">
+                Failed to load IMD rainfall data: ${err.message}
+              </td>
+            </tr>
+          `;
+        }
+      }
+
+      function renderFilteredRainfallTable() {
+        if (!imdRainfallTableBody) return;
+        const q = (imdDistrictSearch.value || '').trim().toLowerCase();
+        const periodKey = imdPeriodSelect.value || 'daily';
+        const catFilter = imdCategoryFilter.value || 'ALL';
+
+        let list = rawImdDistricts.filter(d => {
+          const nameMatch = d.district_name.toLowerCase().includes(q) || (d.state_name || '').toLowerCase().includes(q) || d.district_id.includes(q);
+          if (!nameMatch) return false;
+          const p = d[periodKey] || {};
+          if (catFilter !== 'ALL' && p.category_code !== catFilter) return false;
+          return true;
+        });
+
+        // Sorting
+        list.sort((a, b) => {
+          let va = a[currentRainfallSort.column];
+          let vb = b[currentRainfallSort.column];
+          if (['actual_mm', 'normal_mm', 'departure_percent'].includes(currentRainfallSort.column)) {
+            va = (a[periodKey] || {})[currentRainfallSort.column];
+            vb = (b[periodKey] || {})[currentRainfallSort.column];
+            if (va === null || va === undefined) va = -9999;
+            if (vb === null || vb === undefined) vb = -9999;
+          }
+          if (typeof va === 'string') {
+            return currentRainfallSort.asc ? va.localeCompare(vb) : vb.localeCompare(va);
+          }
+          return currentRainfallSort.asc ? (va - vb) : (vb - va);
+        });
+
+        if (list.length === 0) {
+          imdRainfallTableBody.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 2rem; color: var(--mist);">
+                No matching districts found for query "${q}".
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        imdRainfallTableBody.innerHTML = '';
+        list.forEach((d, idx) => {
+          const p = d[periodKey] || {};
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid rgba(143,196,216,0.08)';
+          tr.style.backgroundColor = idx % 2 === 0 ? 'rgba(7,29,51,0.4)' : 'transparent';
+
+          const actualStr = p.actual_mm !== null && p.actual_mm !== undefined ? `${p.actual_mm.toFixed(1)} mm` : '--';
+          const normalStr = p.normal_mm !== null && p.normal_mm !== undefined ? `${p.normal_mm.toFixed(1)} mm` : '--';
+          const depStr = p.departure_percent !== null && p.departure_percent !== undefined ? `${p.departure_percent > 0 ? '+' : ''}${p.departure_percent.toFixed(1)}%` : '--';
+          const badgeColor = p.category_badge_color || '#65BDD1';
+
+          tr.innerHTML = `
+            <td style="padding: 0.7rem 1rem; color: var(--mist); font-family: monospace;">#${d.district_id || 'N/A'}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--ice); font-weight: 600;">${d.district_name}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--mist);">${d.state_name || '--'}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--accent-cyan); font-weight: 600;">${actualStr}</td>
+            <td style="padding: 0.7rem 1rem; color: var(--ice);">${normalStr}</td>
+            <td style="padding: 0.7rem 1rem; font-weight: 600; color: ${p.departure_percent >= 20 ? '#5dd55d' : (p.departure_percent <= -20 ? '#f0ad4e' : 'var(--ice)')};">${depStr}</td>
+            <td style="padding: 0.7rem 1rem;">
+              <span class="provenance-tag" style="background: rgba(11,45,77,0.8); border: 1px solid ${badgeColor}; color: ${badgeColor}; font-size: 0.65rem;">
+                ${p.category_code} (${p.category_meaning})
+              </span>
+            </td>
+            <td style="padding: 0.7rem 1rem;">
+              <button class="live-api-sync-btn btn-inspect-district" style="padding: 0.2rem 0.5rem; font-size: 0.65rem;">INSPECT</button>
+            </td>
+          `;
+
+          tr.querySelector('.btn-inspect-district').addEventListener('click', () => {
+            selectDistrictDetail(d);
+            document.getElementById('districtDetailCard').scrollIntoView({ behavior: 'smooth' });
+          });
+
+          imdRainfallTableBody.appendChild(tr);
+        });
+      }
+
+      function selectDistrictDetail(dist) {
+        const periodKey = imdPeriodSelect.value || 'daily';
+        const p = dist[periodKey] || {};
+
+        document.getElementById('selDistrictName').textContent = `${dist.district_name.toUpperCase()} (ID: ${dist.district_id || '--'})`;
+        document.getElementById('selDistrictState').textContent = `${dist.state_name || 'India'} • ${p.date || dist.observation_date || 'Current Pass'} (${periodKey.toUpperCase()})`;
+
+        const badge = document.getElementById('selDistrictCatBadge');
+        badge.textContent = `${p.category_code} (${p.category_meaning})`;
+        badge.style.borderColor = p.category_badge_color || '#65BDD1';
+        badge.style.color = p.category_badge_color || '#65BDD1';
+
+        const dep = p.departure_percent !== null && p.departure_percent !== undefined ? `${p.departure_percent > 0 ? '+' : ''}${p.departure_percent.toFixed(1)}% Departure` : 'N/A';
+        document.getElementById('selDistrictDepText').textContent = dep;
+
+        const actual = p.actual_mm || 0;
+        const normal = p.normal_mm || 0;
+        document.getElementById('gaugeActualVal').textContent = `${actual.toFixed(1)} mm`;
+        document.getElementById('gaugeNormalVal').textContent = `${normal.toFixed(1)} mm`;
+
+        const maxVal = Math.max(actual, normal, 1.0) * 1.25;
+        const actPct = Math.min(100, Math.max(5, (actual / maxVal) * 100));
+        const nrmPct = Math.min(100, Math.max(5, (normal / maxVal) * 100));
+
+        document.getElementById('gaugeActualBar').style.width = `${actPct}%`;
+        document.getElementById('gaugeNormalBar').style.width = `${nrmPct}%`;
+      }
+
+      // Event listeners for District Rainfall filters
+      if (imdDistrictSearch) imdDistrictSearch.addEventListener('input', renderFilteredRainfallTable);
+      if (imdPeriodSelect) imdPeriodSelect.addEventListener('change', () => {
+        renderFilteredRainfallTable();
+        if (rawImdDistricts.length > 0) selectDistrictDetail(rawImdDistricts[0]);
+      });
+      if (imdCategoryFilter) imdCategoryFilter.addEventListener('change', renderFilteredRainfallTable);
+      if (btnResetRainfallFilter) btnResetRainfallFilter.addEventListener('click', () => {
+        imdDistrictSearch.value = '';
+        imdPeriodSelect.value = 'daily';
+        imdCategoryFilter.value = 'ALL';
+        renderFilteredRainfallTable();
+        if (rawImdDistricts.length > 0) selectDistrictDetail(rawImdDistricts[0]);
+      });
+      if (btnRefreshImdRainfall) btnRefreshImdRainfall.addEventListener('click', fetchImdRainfall);
+
+      // Table Header Sorting Listeners
+      const sortMap = {
+        'thDistId': 'district_id',
+        'thDistName': 'district_name',
+        'thDistActual': 'actual_mm',
+        'thDistNormal': 'normal_mm',
+        'thDistDep': 'departure_percent'
+      };
+      Object.keys(sortMap).forEach(id => {
+        const th = document.getElementById(id);
+        if (th) {
+          th.addEventListener('click', () => {
+            const col = sortMap[id];
+            if (currentRainfallSort.column === col) {
+              currentRainfallSort.asc = !currentRainfallSort.asc;
+            } else {
+              currentRainfallSort.column = col;
+              currentRainfallSort.asc = true;
+            }
+            renderFilteredRainfallTable();
+          });
+        }
+      });
+
+      // Initial Fetch
+      fetchImdRainfall();
+
+      window.addEventListener('cyclonex:stormChanged', (e) => renderTable(e.detail.storm));
+      if (window.CYCLONEX.selectedStormData) renderTable(window.CYCLONEX.selectedStormData);
+    });
+  </script>
+
+</body>
+</html>

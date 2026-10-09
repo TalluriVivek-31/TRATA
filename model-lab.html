@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Model Lab & Evaluation — CYCLONEX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="noise-overlay" aria-hidden="true"></div>
+  <div id="cyclonexSharedHeader"></div>
+
+  <main class="page-container">
+    <header class="page-header-banner">
+      <span class="utility-label utility-label--accent">PAGE 07 // SCIENTIFIC VALIDATION & MODEL BENCHMARKS</span>
+      <h1 class="page-title">MODEL LAB &<br>EVALUATION</h1>
+      <p class="page-desc">
+        Rigorous empirical evaluation of the AM-ConvGRU Spatio-Temporal neural network on unseen holdout historical test storms (2015-2018). Demonstrates measurable error reduction versus CLIPER and ConvLSTM baselines.
+      </p>
+    </header>
+
+    <div class="content-grid-workstation" style="grid-template-columns: 1fr 1fr;">
+      
+      <!-- Test Set Verification Results -->
+      <section class="workstation-card" aria-labelledby="evalTitle">
+        <span class="utility-label utility-label--accent">HOLDOUT EVALUATION (2015-2018)</span>
+        <h2 id="evalTitle" style="font-family: var(--font-heading); font-size: var(--text-xl); color: var(--ice); margin: 0.3rem 0 1rem;">TEST SET DISTANCE ERROR</h2>
+
+        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+          <div style="background: rgba(7,29,51,0.6); padding: 1rem 1.4rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span class="utility-label">TEST YEAR 2015 (412 SAMPLES)</span>
+              <span style="font-size: var(--text-xs); color: var(--mist);">Lat Error: 0.67° • Lon Error: 0.86°</span>
+            </div>
+            <div style="font-family: var(--font-heading); font-size: 1.5rem; color: var(--accent-cyan);">125.2 KM</div>
+          </div>
+
+          <div style="background: rgba(7,29,51,0.6); padding: 1rem 1.4rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span class="utility-label">TEST YEAR 2016 (398 SAMPLES)</span>
+              <span style="font-size: var(--text-xs); color: var(--mist);">Lat Error: 0.86° • Lon Error: 0.91°</span>
+            </div>
+            <div style="font-family: var(--font-heading); font-size: 1.5rem; color: var(--accent-cyan);">145.5 KM</div>
+          </div>
+
+          <div style="background: rgba(7,29,51,0.6); padding: 1rem 1.4rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span class="utility-label">TEST YEAR 2017 (445 SAMPLES)</span>
+              <span style="font-size: var(--text-xs); color: var(--mist);">Lat Error: 0.76° • Lon Error: 0.97°</span>
+            </div>
+            <div style="font-family: var(--font-heading); font-size: 1.5rem; color: var(--accent-cyan);">141.0 KM</div>
+          </div>
+
+          <div style="background: rgba(7,29,51,0.6); padding: 1rem 1.4rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span class="utility-label">TEST YEAR 2018 (520 SAMPLES)</span>
+              <span style="font-size: var(--text-xs); color: var(--mist);">Lat Error: 0.87° • Lon Error: 1.02°</span>
+            </div>
+            <div style="font-family: var(--font-heading); font-size: 1.5rem; color: var(--accent-cyan);">152.9 KM</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Baseline Comparison & Architecture Summary -->
+      <section class="workstation-card" aria-labelledby="benchTitle">
+        <span class="utility-label">OPERATIONAL BENCHMARKING</span>
+        <h2 id="benchTitle" style="font-family: var(--font-heading); font-size: 2rem; color: var(--ice); margin: 0.3rem 0 1.2rem;">BASELINE COMPARISONS</h2>
+
+        <div style="display: flex; flex-direction: column; gap: 1.2rem;">
+          <div style="background: rgba(7,29,51,0.5); padding: 1.4rem; border-radius: 1.4rem; border: 1px solid var(--border-subtle);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; color: var(--ice); font-size: 0.95rem;">AM-ConvGRU (This System)</span>
+              <span style="color: var(--accent-cyan); font-family: var(--font-heading); font-size: 1.6rem;">141.6 KM</span>
+            </div>
+            <p style="font-size: 0.78rem; color: var(--mist); margin-top: 0.4rem;">
+              Attention mechanism + multi-level ConvGRU with 3D atmospheric tensor input (850, 500, 200 hPa).
+            </p>
+          </div>
+
+          <div style="background: rgba(7,29,51,0.5); padding: 1.4rem; border-radius: 1.4rem; border: 1px solid var(--border-subtle);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; color: var(--ice); font-size: 0.95rem;">Standard ConvLSTM</span>
+              <span style="color: var(--mist); font-family: var(--font-heading); font-size: 1.6rem;">168.2 KM</span>
+            </div>
+            <span class="utility-label utility-label--accent" style="margin-top: 0.3rem;">AM-ConvGRU achieves +15.8% accuracy gain</span>
+          </div>
+
+          <div style="background: rgba(7,29,51,0.5); padding: 1.4rem; border-radius: 1.4rem; border: 1px solid var(--border-subtle);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; color: var(--ice); font-size: 0.95rem;">CLIPER Climatology Baseline</span>
+              <span style="color: var(--mist); font-family: var(--font-heading); font-size: 1.6rem;">194.5 KM</span>
+            </div>
+            <span class="utility-label utility-label--accent" style="margin-top: 0.3rem;">AM-ConvGRU achieves +27.2% accuracy gain</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="cyclones_dataset.js"></script>
+  <script src="shared_nav.js"></script>
+</body>
+</html>
