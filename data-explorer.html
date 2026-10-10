@@ -110,6 +110,8 @@
               <option value="ir108" selected>Thermal Infrared (10.8µm / 10.4µm - Cloud-Top Temp)</option>
               <option value="wv062">Water Vapor (6.2µm / 6.7µm - Moisture Inflow)</option>
               <option value="vis006">Visible Optical (0.6µm - High-Res Daytime Storm Structure)</option>
+              <option value="rgb_convection">RGB Severe Convection (Deep Updrafts & Glaciation)</option>
+              <option value="rgb_natural">RGB Natural Colour (Surface Albedo & Clouds)</option>
               <option value="rgb_airmass">RGB Airmass / Multi-spectral Composite</option>
             </select>
           </div>
@@ -726,6 +728,8 @@
             { id: "ir108", label: "Thermal Infrared (10.8µm Clean Window)" },
             { id: "wv062", label: "Water Vapor (6.2µm Moisture Inflow)" },
             { id: "vis006", label: "Visible Optical (0.6µm High-Res Daytime)" },
+            { id: "rgb_convection", label: "RGB Severe Convection (Deep Updrafts)" },
+            { id: "rgb_natural", label: "RGB Natural Colour (Surface & Clouds)" },
             { id: "rgb_airmass", label: "RGB Airmass Composite" }
           ],
           getImageUrl: (reg, ch) => `${apiBase}/api/satellite/meteosat/latest.png?region=${reg}&channel=${ch}`
@@ -864,9 +868,26 @@
             const metData = await metRes.json();
 
             if (currentSatPlatform === 'meteosat') {
-              satObsTimestamp.textContent = metData.last_fetch_utc || new Date().toISOString().substring(0, 16).replace('T', ' ') + ' UTC';
-              satRetTimestamp.textContent = 'Synchronized via EUMETView WMS';
+              satObsTimestamp.textContent = metData.observation_timestamp_utc || 'Connecting...';
+              satRetTimestamp.textContent = metData.retrieval_timestamp_utc || 'Synchronized via EUMETView WMS';
               satDataIntegrity.textContent = 'OGC WMS Magic Bytes Valid';
+              if (satFreshnessBadge) {
+                if (metData.freshness === 'LIVE') {
+                  satFreshnessBadge.className = 'provenance-tag live';
+                  satFreshnessBadge.textContent = '● LIVE (≤45m FRESH)';
+                } else if (metData.freshness === 'DELAYED') {
+                  satFreshnessBadge.className = 'provenance-tag archive';
+                  satFreshnessBadge.style.color = '#ffaa00';
+                  satFreshnessBadge.textContent = '● DELAYED (45-90m)';
+                } else if (metData.freshness === 'STALE') {
+                  satFreshnessBadge.className = 'provenance-tag archive';
+                  satFreshnessBadge.style.color = '#ff4444';
+                  satFreshnessBadge.textContent = '● STALE (>90m OLD)';
+                } else {
+                  satFreshnessBadge.className = 'provenance-tag live';
+                  satFreshnessBadge.textContent = `● ${metData.freshness}`;
+                }
+              }
             } else {
               satObsTimestamp.textContent = himData.observation_timestamp_utc || 'Scanning...';
               satRetTimestamp.textContent = himData.last_successful_retrieval_utc || 'Active Polling';

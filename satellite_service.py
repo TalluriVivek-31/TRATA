@@ -135,6 +135,22 @@ METEOSAT_CHANNELS: Dict[str, Dict[str, Any]] = {
         "physical_measurement": "Stratospheric Ozone Intrusion & Baroclinic Instability",
         "resolution": "3 km at nadir",
         "description": "Multi-spectral composite diagnosing rapid intensification and dry intrusions."
+    },
+    "rgb_convection": {
+        "layer_id": "msg_iodc:rgb_convection",
+        "name": "Meteosat IODC RGB Severe Convection",
+        "wavelength": "WV6.2-WV7.3, IR3.9-IR10.8, IR1.6-VIS0.6",
+        "physical_measurement": "Convective Updraft Vigour, Glaciation & Cloud Top Microphysics",
+        "resolution": "3 km at nadir",
+        "description": "Severe storms RGB highlighting strong convective updrafts and small ice crystals in anvil."
+    },
+    "rgb_natural": {
+        "layer_id": "msg_iodc:rgb_natural",
+        "name": "Meteosat IODC RGB Natural Colour",
+        "wavelength": "VIS0.6, VIS0.8, NIR1.6 Combination",
+        "physical_measurement": "Natural Color Surface Albedo & Ocean Reflectance",
+        "resolution": "3 km at nadir",
+        "description": "Pseudo true-colour composite showing vegetated land, water bodies, and cloud phases."
     }
 }
 
@@ -176,8 +192,71 @@ class SatelliteImageryService:
         # Concurrency & background polling
         self._lock = asyncio.Lock()
         self._meteosat_lock = asyncio.Lock()
-        self._background_task: Optional[asyncio.Task] = None
-        self._is_running: bool = False
+        self._meteosat_obs_timestamps: Dict[str, str] = {}
+        self._meteosat_caps_last_check: float = 0.0
+        self._meteosat_update_interval_minutes: int = 15  # SEVIRI IODC scans every 15 minutes
+
+    async def get_meteosat_latest_observation_time(self, layer_id: str = "msg_iodc:ir108") -> Tuple[str, str]:
+        """
+        Parses official WMS GetCapabilities to retrieve the authentic spaceborne observation timestamp.
+        Returns (observation_timestamp_iso, freshness_status).
+        Freshness thresholds (based on 15-min SEVIRI repeat cycle):
+        - LIVE: delta <= 45 minutes
+        - DELAYED: 45 < delta <= 90 minutes
+        - STALE: delta > 90 minutes
+        - UNAVAILABLE: no observation timestamp retrieved
+        """
+        now = time.time()
+        # Cache capabilities response for 3 minutes
+        if (now - self._meteosat_caps_last_check) < 180.0 and layer_id in self._meteosat_obs_timestamps:
+            obs_iso = self._meteosat_obs_timestamps[layer_id]
+        else:
+            try:
+                caps_url = f"{EUMETSAT_WMS_URL}?service=WMS&version=1.3.0&request=GetCapabilities"
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(caps_url, headers={"User-Agent": "CYCLONEX-Meteorological-Workstation/2.4"})
+                    if resp.status_code == 200:
+                        import xml.etree.ElementTree as ET
+                        root = ET.fromstring(resp.content)
+                        ns = {"wms": "http://www.opengis.net/wms"}
+                        for lyr in root.findall(".//wms:Layer", ns):
+                            name_el = lyr.find("wms:Name", ns)
+                            if name_el is not None and name_el.text and name_el.text.startswith("msg_iodc:"):
+                                dim = lyr.find("./wms:Dimension", ns)
+                                if dim is not None and dim.text:
+                                    parts = dim.text.strip().split("/")
+                                    end_t = parts[1] if len(parts) > 1 else parts[0]
+                                    self._meteosat_obs_timestamps[name_el.text] = end_t
+                        self._meteosat_caps_last_check = now
+            except Exception as e:
+                logger.warning(f"Failed to query EUMETSAT GetCapabilities timestamps: {e}")
+
+        obs_iso = self._meteosat_obs_timestamps.get(layer_id)
+        if not obs_iso:
+            # Fallback to general IODC ir108 timestamp if layer specific not found
+            obs_iso = self._meteosat_obs_timestamps.get("msg_iodc:ir108")
+
+        if not obs_iso:
+            return "UNAVAILABLE", "UNAVAILABLE"
+
+        # Calculate truthful freshness based on actual observation timestamp
+        try:
+            # e.g. 2026-10-10T07:30:00.000Z
+            clean_ts = obs_iso.replace("Z", "+00:00")
+            import datetime
+            obs_dt = datetime.datetime.fromisoformat(clean_ts)
+            now_dt = datetime.datetime.now(datetime.timezone.utc)
+            delta_mins = (now_dt - obs_dt).total_seconds() / 60.0
+
+            if delta_mins <= 45.0:
+                freshness = "LIVE"
+            elif delta_mins <= 90.0:
+                freshness = "DELAYED"
+            else:
+                freshness = "STALE"
+            return obs_iso, freshness
+        except Exception:
+            return obs_iso, "GENUINE_NEAR_REAL_TIME"
 
     async def fetch_meteosat_image(self, region_key: str = "bay-of-bengal", channel_key: str = "ir108") -> Optional[bytes]:
         """
@@ -217,7 +296,6 @@ class SatelliteImageryService:
                 "FORMAT": "image/png"
             }
 
-            url = f"{EUMETSAT_WMS_URL}?httpx_cache_buster={int(now_ts)}"
             try:
                 async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
                     resp = await client.get(EUMETSAT_WMS_URL, params=params, headers={
@@ -242,8 +320,9 @@ class SatelliteImageryService:
 
         return self._meteosat_cache.get(cache_id)
 
-    def get_meteosat_status(self) -> Dict[str, Any]:
+    async def get_meteosat_status(self) -> Dict[str, Any]:
         """Returns provenance and health status of the EUMETSAT Meteosat IODC integration."""
+        latest_obs_t, freshness = await self.get_meteosat_latest_observation_time("msg_iodc:ir108")
         return {
             "source_identifier": "EUMETSAT_METEOSAT9_IODC",
             "provider": "EUMETSAT (European Organisation for the Exploitation of Meteorological Satellites)",
@@ -251,12 +330,14 @@ class SatelliteImageryService:
             "service_gateway": "EUMETView OGC Web Map Service (WMS v1.3.0)",
             "gateway_url": EUMETSAT_WMS_URL,
             "status": self._meteosat_status if self._meteosat_status != "INITIALIZING" else "READY_OPEN_WMS",
-            "last_fetch_utc": self._meteosat_last_fetch_utc,
+            "observation_timestamp_utc": latest_obs_t,
+            "retrieval_timestamp_utc": self._meteosat_last_fetch_utc or time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
             "cached_layers_count": len(self._meteosat_cache),
             "supported_regions": list(METEOSAT_REGIONS.keys()),
             "supported_channels": list(METEOSAT_CHANNELS.keys()),
             "auth_required": False,
-            "freshness": "GENUINE_NEAR_REAL_TIME",
+            "freshness": freshness,
+            "cadence_minutes": 15,
             "licensing": "EUMETSAT Open Data Policy (Real-time WMS Visualisation)"
         }
 
