@@ -20,6 +20,7 @@ import time
 import math
 import urllib.request
 import urllib.parse
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field, asdict
 
@@ -405,4 +406,495 @@ class CyclonexDataPipeline:
             "provenance": asdict(provenance),
             "variables": variables,
             "scientific_disclaimer": "SST indicates ocean thermal potential; surface winds reflect 10m boundary layer only."
+        }
+
+
+# =============================================================================
+# MULTI-SOURCE CYCLONE TRACK FUSION & RECONCILIATION ENGINE
+# =============================================================================
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Computes great-circle distance in kilometers between two geographic points."""
+    R = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2.0)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0)**2
+    return 2.0 * R * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+
+
+def parse_and_normalize_timestamp(raw_ts: Any) -> Tuple[Optional[int], str]:
+    """
+    Normalizes varied timestamp representations from IMD, JTWC, CMA, NASA, NOAA
+    into standard Unix epoch seconds and ISO-8601 UTC string (YYYY-MM-DD HH:MM UTC).
+    """
+    if raw_ts is None:
+        return None, ""
+
+    if isinstance(raw_ts, (int, float)):
+        if raw_ts > 1000000000:
+            dt = datetime.fromtimestamp(raw_ts, tz=timezone.utc)
+            return int(raw_ts), dt.strftime("%Y-%m-%d %H:%M UTC")
+        s = str(int(raw_ts))
+    else:
+        s = str(raw_ts).strip()
+
+    # Format 1: IMD "24.05.24/0000" or "24.05.2024/0000"
+    m = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/(\d{2})(\d{2})", s)
+    if m:
+        day, mon, yr, hr, mn = m.groups()
+        yr_i = int("20" + yr if len(yr) == 2 else yr)
+        try:
+            dt = datetime(yr_i, int(mon), int(day), int(hr), int(mn), tzinfo=timezone.utc)
+            return int(dt.timestamp()), dt.strftime("%Y-%m-%d %H:%M UTC")
+        except ValueError:
+            pass
+
+    # Format 2: "YYYY-MM-DD HH:MM" or "YYYY-MM-DD HH:MM UTC" or "YYYY-MM-DDTHH:MM:SS"
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?", s)
+    if m:
+        yr, mon, day, hr, mn, sc = m.groups()
+        try:
+            dt = datetime(int(yr), int(mon), int(day), int(hr), int(mn), int(sc or 0), tzinfo=timezone.utc)
+            return int(dt.timestamp()), dt.strftime("%Y-%m-%d %H:%M UTC")
+        except ValueError:
+            pass
+
+    # Format 3: CMA/JTWC Compact "YYYYMMDDHH" or "YYYYMMDDHHMM"
+    m = re.match(r"^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})?$", s)
+    if m:
+        yr, mon, day, hr, mn = m.groups()
+        try:
+            dt = datetime(int(yr), int(mon), int(day), int(hr), int(mn or 0), tzinfo=timezone.utc)
+            return int(dt.timestamp()), dt.strftime("%Y-%m-%d %H:%M UTC")
+        except ValueError:
+            pass
+
+    return None, s
+
+
+def categorize_cyclone_intensity(wind_kmh: Optional[float]) -> str:
+    """Assigns official WMO/IMD tropical cyclone intensity classification based on wind speed."""
+    if wind_kmh is None:
+        return "TROPICAL DISTURBANCE"
+    if wind_kmh >= 222.0:
+        return "SUPER CYCLONIC STORM"
+    elif wind_kmh >= 166.0:
+        return "EXTREMELY SEVERE CYCLONIC STORM"
+    elif wind_kmh >= 118.0:
+        return "VERY SEVERE CYCLONIC STORM"
+    elif wind_kmh >= 89.0:
+        return "SEVERE CYCLONIC STORM"
+    elif wind_kmh >= 62.0:
+        return "CYCLONIC STORM"
+    elif wind_kmh >= 50.0:
+        return "DEEP DEPRESSION"
+    elif wind_kmh >= 31.0:
+        return "DEPRESSION"
+    else:
+        return "LOW PRESSURE AREA"
+
+
+class TrackFusionEngine:
+    """
+    Authoritative Multi-Source Cyclone Data Fusion and Reconciliation Engine.
+    
+    Combines observations from IMD, MOSDAC/INSAT, NASA, NOAA, and CMA/JTWC archives into
+    EXACTLY ONE authoritative, chronological observed track and prepares validated
+    inputs for CYCLONEX AI forecasting models.
+    """
+
+    # Documented Source-of-Truth Priority Hierarchy
+    SOURCE_PRIORITIES = {
+        "IMD RSMC New Delhi": 100,
+        "India Meteorological Department (IMD)": 100,
+        "RSMC New Delhi / India Meteorological Department": 100,
+        "CMA Best Track": 95,
+        "China Meteorological Administration (CMA)": 95,
+        "JTWC": 90,
+        "Joint Typhoon Warning Center (JTWC)": 90,
+        "ISRO MOSDAC / INSAT-3DR": 85,
+        "ISRO Space Applications Centre": 85,
+        "NOAA OSPO Himawari-9": 80,
+        "NOAA / JMA": 80,
+        "NASA MODIS / GIBS": 75,
+        "NASA EOSDIS": 75,
+        "Synoptic Marine Station": 65,
+        "Open-Meteo Global Reanalysis": 50,
+        "NASA POWER Climatology": 45,
+        "DEFAULT": 40
+    }
+
+    # Operational thresholds
+    TEMPORAL_MATCH_WINDOW_SECONDS = 3600    # 1 hour matching window for duplicate fixes
+    MAX_CONTINUOUS_GAP_SECONDS = 64800      # 18 hours: gaps exceeding this trigger segment break
+    MAX_TRANSLATIONAL_SPEED_KMH = 110.0     # Max realistic cyclone forward speed
+    CONFLICT_DISTANCE_THRESHOLD_KM = 35.0   # Beyond 35 km is marked as significant conflict
+
+    @classmethod
+    def get_source_priority(cls, source_name: str) -> int:
+        if not source_name:
+            return cls.SOURCE_PRIORITIES["DEFAULT"]
+        for k, v in cls.SOURCE_PRIORITIES.items():
+            if k.lower() in source_name.lower():
+                return v
+        return cls.SOURCE_PRIORITIES["DEFAULT"]
+
+    @classmethod
+    def normalize_cyclone_name(cls, name: str) -> str:
+        if not name:
+            return ""
+        clean = re.sub(r"(?i)\b(cyclone|super|typhoon|severe|tropical|storm)\b", "", name)
+        return re.sub(r"[^A-Za-z0-9]", "", clean).strip().upper()
+
+    @classmethod
+    def is_compatible_cyclone(
+        cls,
+        target_id: str,
+        target_name: str,
+        target_year: Optional[int],
+        record: Dict[str, Any]
+    ) -> Tuple[bool, str]:
+        """
+        Guarantees Cross-Cyclone Isolation.
+        Rejects observations belonging to different storms, historical cyclones with
+        similar names from different years, or outside of valid spatial/temporal boundaries.
+        """
+        norm_target_name = cls.normalize_cyclone_name(target_name)
+
+        # Check explicit cyclone ID if present
+        rec_id = str(record.get("cyclone_id") or record.get("id") or "").strip().upper()
+        if rec_id and target_id:
+            target_clean = target_id.strip().upper()
+            if rec_id != target_clean and not (target_clean in rec_id or rec_id in target_clean):
+                alias_groups = [
+                    {"REMAL_2024", "RSMC-2024-BOB01", "TC-2024-BOB-01", "REMAL"},
+                    {"DANA_2024", "RSMC-2024-BOB02", "TC-2024-BOB-02", "DANA"},
+                    {"BIPARJOY_2023", "RSMC-2023-ARB01", "TC-2023-BOB-02", "BIPARJOY"},
+                    {"AMPHAN_2020", "RSMC-2020-BOB01", "TC-2020-BOB-01", "AMPHAN"}
+                ]
+                match_alias = any(rec_id in grp and target_clean in grp for grp in alias_groups)
+                if not match_alias and len(rec_id) > 2 and len(target_clean) > 2:
+                    return False, f"Cyclone ID mismatch: record '{rec_id}' does not match target '{target_id}'"
+
+        # Check storm name if present
+        rec_name = str(record.get("cyclone_name") or record.get("name") or record.get("CYCLONE_NAME") or "").strip()
+        if rec_name and norm_target_name:
+            norm_rec_name = cls.normalize_cyclone_name(rec_name)
+            if norm_rec_name and norm_rec_name != norm_target_name:
+                return False, f"Storm name mismatch: record '{rec_name}' does not match target '{target_name}'"
+
+        # Check year if present
+        rec_year = record.get("year")
+        if rec_year and target_year:
+            try:
+                if int(rec_year) != int(target_year):
+                    return False, f"Year mismatch: record year {rec_year} != target year {target_year}"
+            except ValueError:
+                pass
+
+        # Check timestamp year if timestamp is parsed
+        raw_ts = record.get("time") or record.get("date_time") or record.get("Date/Time")
+        if raw_ts and target_year:
+            epoch, time_str = parse_and_normalize_timestamp(raw_ts)
+            if time_str and len(time_str) >= 4:
+                try:
+                    ts_yr = int(time_str[:4])
+                    if abs(ts_yr - int(target_year)) > 1:
+                        return False, f"Timestamp year {ts_yr} incompatible with cyclone year {target_year}"
+                except ValueError:
+                    pass
+
+        return True, "Compatible cyclone record"
+
+    @classmethod
+    def fuse_records(
+        cls,
+        target_id: str,
+        target_name: str,
+        target_year: Optional[int],
+        target_basin: str,
+        raw_records: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Reconciles observations into one authoritative canonical track:
+        1. Filters out non-matching storms & invalid coordinates.
+        2. Normalizes timestamps, coordinates, wind speeds, and pressures.
+        3. Identifies co-temporal observations within matching window.
+        4. Applies documented source-priority policy (NO BLIND AVERAGING).
+        5. Flags conflicts and attaches candidate provenance.
+        6. Enforces temporal continuity: detects gaps > 18h and splits into distinct segments.
+        7. Returns one canonical chronological track record with full lineage.
+        """
+        valid_candidates: List[Dict[str, Any]] = []
+        quarantined_records: List[Dict[str, Any]] = []
+
+        # Step 1: Filter and normalize every candidate
+        for idx, r in enumerate(raw_records):
+            compatible, reason = cls.is_compatible_cyclone(target_id, target_name, target_year, r)
+            if not compatible:
+                quarantined_records.append({
+                    "raw_index": idx,
+                    "reason": reason,
+                    "record_summary": {k: r.get(k) for k in ("cyclone_name", "time", "lat", "lon") if k in r}
+                })
+                continue
+
+            # Extract coordinates
+            lat_raw = r.get("lat") if "lat" in r else r.get("latitude")
+            lon_raw = r.get("lon") if "lon" in r else r.get("longitude")
+            is_valid_coord, lat_c, lon_c, coord_msg = CyclonexDataPipeline.validate_coordinates(lat_raw, lon_raw)
+            if not is_valid_coord:
+                quarantined_records.append({
+                    "raw_index": idx,
+                    "reason": f"Invalid coordinates: {coord_msg}",
+                    "record_summary": {"lat": lat_raw, "lon": lon_raw}
+                })
+                continue
+
+            # Extract timestamp
+            raw_ts = r.get("time") or r.get("date_time") or r.get("Date/Time") or r.get("raw_time")
+            epoch, time_str = parse_and_normalize_timestamp(raw_ts)
+            if epoch is None:
+                quarantined_records.append({
+                    "raw_index": idx,
+                    "reason": f"Unparseable timestamp: '{raw_ts}'",
+                    "record_summary": {"raw_ts": raw_ts}
+                })
+                continue
+
+            # Normalize wind
+            raw_wind = (
+                r.get("wind_kmh")
+                if "wind_kmh" in r
+                else r.get("Mean MSW (kmph)") or r.get("mean_msw") or r.get("wind_speed")
+            )
+            wind_units = r.get("wind_units") or ("kt" if "MSW (kt)" in r and raw_wind is None else "km/h")
+            if raw_wind is None and "MSW (kt)" in r:
+                raw_wind = r.get("MSW (kt)")
+                wind_units = "kt"
+            elif raw_wind is None and "wind_ms" in r:
+                raw_wind = r.get("wind_ms")
+                wind_units = "m/s"
+
+            norm_wind_var = CyclonexDataPipeline.normalize_wind_speed(raw_wind, wind_units)
+
+            # Normalize pressure
+            raw_pres = r.get("pressure_hpa") if "pressure_hpa" in r else r.get("pressure") or r.get("central_pressure")
+            pres_units = r.get("pressure_units") or "hPa"
+            norm_pres_var = CyclonexDataPipeline.normalize_pressure(raw_pres, pres_units) if raw_pres is not None else None
+
+            # Source attribution & agency
+            agency = r.get("agency") or r.get("source_agency") or r.get("source") or "IMD RSMC New Delhi"
+            priority = cls.get_source_priority(agency)
+
+            valid_candidates.append({
+                "candidate_id": f"CAND-{idx}-{epoch}",
+                "epoch": epoch,
+                "time_utc": time_str,
+                "lat": lat_c,
+                "lon": lon_c,
+                "wind_kmh": norm_wind_var.normalized_value,
+                "wind_kt": round(norm_wind_var.normalized_value / 1.852, 1) if norm_wind_var.normalized_value else None,
+                "pressure_hpa": norm_pres_var.normalized_value if norm_pres_var else None,
+                "category": r.get("Category") or r.get("category") or categorize_cyclone_intensity(norm_wind_var.normalized_value),
+                "source_agency": agency,
+                "source_priority": priority,
+                "data_tier": r.get("data_tier") or "BEST_TRACK_VERIFIED",
+                "sensor_or_system": r.get("sensor") or r.get("satellite_or_system") or "Synoptic Fix",
+                "raw": r
+            })
+
+        # Step 2: Temporal grouping and deduplication
+        valid_candidates.sort(key=lambda x: x["epoch"])
+
+        fused_waypoints: List[Dict[str, Any]] = []
+        conflicts_resolved = 0
+        deduplicated_count = 0
+
+        # Cluster into time windows
+        clusters: List[List[Dict[str, Any]]] = []
+        for cand in valid_candidates:
+            if not clusters:
+                clusters.append([cand])
+            else:
+                last_cluster = clusters[-1]
+                if abs(cand["epoch"] - last_cluster[0]["epoch"]) <= cls.TEMPORAL_MATCH_WINDOW_SECONDS:
+                    last_cluster.append(cand)
+                else:
+                    clusters.append([cand])
+
+        # Resolve each cluster into exactly ONE canonical waypoint
+        for c_idx, cluster in enumerate(clusters):
+            if len(cluster) == 1:
+                cand = cluster[0]
+                wp = {
+                    "waypoint_id": f"WP-{target_id}-{cand['epoch']}",
+                    "epoch": cand["epoch"],
+                    "time": cand["time_utc"],
+                    "lat": cand["lat"],
+                    "lon": cand["lon"],
+                    "wind_kmh": cand["wind_kmh"] or 50.0,
+                    "wind_kt": cand["wind_kt"] or 27.0,
+                    "pressure_hpa": cand["pressure_hpa"] or 1000.0,
+                    "category": cand["category"],
+                    "primary_source": cand["source_agency"],
+                    "qc_status": QualityFlag.VALID_VERIFIED,
+                    "conflict_flag": False,
+                    "uncertainty_radius_km": 15.0,
+                    "candidate_sources": [cand["source_agency"]],
+                    "candidate_observations": [
+                        {
+                            "source": cand["source_agency"],
+                            "lat": cand["lat"],
+                            "lon": cand["lon"],
+                            "wind_kmh": cand["wind_kmh"],
+                            "priority": cand["source_priority"]
+                        }
+                    ],
+                    "reconciliation_rule": "Direct Authoritative Observation"
+                }
+                fused_waypoints.append(wp)
+            else:
+                deduplicated_count += (len(cluster) - 1)
+                cluster.sort(key=lambda x: x["source_priority"], reverse=True)
+                primary = cluster[0]
+
+                # Compute maximum spatial divergence among candidates
+                max_dist = 0.0
+                for c1 in cluster:
+                    for c2 in cluster:
+                        d = haversine_km(c1["lat"], c1["lon"], c2["lat"], c2["lon"])
+                        if d > max_dist:
+                            max_dist = d
+
+                is_conflict = (max_dist > cls.CONFLICT_DISTANCE_THRESHOLD_KM)
+                if is_conflict:
+                    conflicts_resolved += 1
+                    qc_status = "QC_UNRESOLVED_CONFLICT"
+                    uncertainty_km = round(max_dist, 1)
+                    reconcile_rule = (
+                        f"Conflict Resolved: Spatial divergence of {max_dist:.1f} km detected among {len(cluster)} sources. "
+                        f"Enforced source-of-truth priority: Selected {primary['source_agency']} (Priority {primary['source_priority']}). "
+                        f"Compromise position averaging strictly rejected to prevent fictitious vortex coordinate."
+                    )
+                else:
+                    qc_status = QualityFlag.VALID_VERIFIED
+                    uncertainty_km = 15.0
+                    reconcile_rule = f"Multi-source consensus: Selected {primary['source_agency']} (Priority {primary['source_priority']})."
+
+                merged_pres = primary["pressure_hpa"]
+                if merged_pres is None:
+                    for c in cluster[1:]:
+                        if c["pressure_hpa"] is not None:
+                            merged_pres = c["pressure_hpa"]
+                            break
+
+                all_cand_sources = list(dict.fromkeys(c["source_agency"] for c in cluster))
+                candidate_obs = [
+                    {
+                        "source": c["source_agency"],
+                        "lat": c["lat"],
+                        "lon": c["lon"],
+                        "wind_kmh": c["wind_kmh"],
+                        "pressure_hpa": c["pressure_hpa"],
+                        "priority": c["source_priority"]
+                    }
+                    for c in cluster
+                ]
+
+                wp = {
+                    "waypoint_id": f"WP-{target_id}-{primary['epoch']}",
+                    "epoch": primary["epoch"],
+                    "time": primary["time_utc"],
+                    "lat": primary["lat"],
+                    "lon": primary["lon"],
+                    "wind_kmh": primary["wind_kmh"] or 50.0,
+                    "wind_kt": primary["wind_kt"] or 27.0,
+                    "pressure_hpa": merged_pres or 1000.0,
+                    "category": primary["category"],
+                    "primary_source": primary["source_agency"],
+                    "qc_status": qc_status,
+                    "conflict_flag": is_conflict,
+                    "uncertainty_radius_km": uncertainty_km,
+                    "candidate_sources": all_cand_sources,
+                    "candidate_observations": candidate_obs,
+                    "reconciliation_rule": reconcile_rule
+                }
+                fused_waypoints.append(wp)
+
+        # Step 3: Speed check & segment gap partitioning
+        fused_waypoints.sort(key=lambda x: x["epoch"])
+
+        segments: List[List[Dict[str, Any]]] = []
+        gaps_detected: List[Dict[str, Any]] = []
+        current_segment: List[Dict[str, Any]] = []
+
+        for i, wp in enumerate(fused_waypoints):
+            if i == 0:
+                current_segment.append(wp)
+            else:
+                prev_wp = fused_waypoints[i - 1]
+                dt_sec = wp["epoch"] - prev_wp["epoch"]
+                dist_km = haversine_km(prev_wp["lat"], prev_wp["lon"], wp["lat"], wp["lon"])
+
+                # Check translational speed violation
+                if dt_sec > 0:
+                    speed_kmh = dist_km / (dt_sec / 3600.0)
+                    if speed_kmh > cls.MAX_TRANSLATIONAL_SPEED_KMH:
+                        wp["qc_status"] = "QC_PHYSICAL_SPEED_VIOLATION"
+                        wp["speed_violation_kmh"] = round(speed_kmh, 1)
+
+                # Check continuity gap (> 18h or > 450 km jump)
+                is_gap = (dt_sec > cls.MAX_CONTINUOUS_GAP_SECONDS) or (dist_km > 450.0 and dt_sec > 36000)
+                if is_gap:
+                    gap_hours = round(dt_sec / 3600.0, 1)
+                    gaps_detected.append({
+                        "gap_index": len(gaps_detected) + 1,
+                        "gap_hours": gap_hours,
+                        "distance_km": round(dist_km, 1),
+                        "from_waypoint": prev_wp["waypoint_id"],
+                        "from_time": prev_wp["time"],
+                        "from_coordinates": [prev_wp["lat"], prev_wp["lon"]],
+                        "to_waypoint": wp["waypoint_id"],
+                        "to_time": wp["time"],
+                        "to_coordinates": [wp["lat"], wp["lon"]],
+                        "rule_applied": "Visible Gap: Connecting line omitted to avoid drawing artificial trajectory across large data void"
+                    })
+                    segments.append(current_segment)
+                    current_segment = [wp]
+                else:
+                    current_segment.append(wp)
+
+        if current_segment:
+            segments.append(current_segment)
+
+        return {
+            "cyclone_id": target_id,
+            "cyclone_name": target_name,
+            "year": target_year,
+            "basin": target_basin,
+            "waypoints": fused_waypoints,
+            "segments": segments,
+            "segments_count": len(segments),
+            "has_gaps": len(gaps_detected) > 0,
+            "gaps": gaps_detected,
+            "quarantined_records": quarantined_records,
+            "reconciliation_summary": {
+                "raw_records_ingested": len(raw_records),
+                "quarantined_count": len(quarantined_records),
+                "valid_candidates_count": len(valid_candidates),
+                "canonical_waypoints_count": len(fused_waypoints),
+                "deduplicated_count": deduplicated_count,
+                "conflicts_resolved": conflicts_resolved,
+                "segments_count": len(segments),
+                "gaps_detected_count": len(gaps_detected),
+                "source_hierarchy_policy": [
+                    "Tier 1 (Priority 100): IMD RSMC New Delhi / Basin Regional Authority",
+                    "Tier 2 (Priority 90-95): Verified Best-Track Archive (JTWC / CMA / IBTrACS)",
+                    "Tier 3 (Priority 75-85): Dedicated Satellite Vortex Fix (ISRO MOSDAC / INSAT-3DR, NOAA Himawari, NASA)",
+                    "Tier 4 (Priority 45-50): Atmospheric Reanalysis & Sounding Grids (Open-Meteo, ERA5, NASA POWER)"
+                ],
+                "conflict_policy_note": "Averaging conflicting positions is strictly prohibited to prevent fictitious center coordinates. Highest authority is selected and conflict flag + candidates are recorded."
+            }
         }

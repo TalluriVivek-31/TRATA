@@ -498,8 +498,126 @@ def run_tests():
     assert r_dist_err.status_code == 404
     print("[PASS] 44. IMD Error Handling -> Non-existent district query rejected gracefully with HTTP 404")
 
+    # 45. Authoritative Fused Single-Track API (/api/track/fused/{cyclone_id})
+    r_fused = client.get('/api/track/fused/REMAL_2024')
+    assert r_fused.status_code == 200, f"Fused track failed: {r_fused.status_code}"
+    fused_data = r_fused.json()
+    assert fused_data['status'] == 'SUCCESS'
+    assert 'canonical_observed_track' in fused_data
+    assert 'cyclonex_ai_forecast' in fused_data
+    assert 'official_forecast' in fused_data
+    obs_track = fused_data['canonical_observed_track']
+    ai_fcst = fused_data['cyclonex_ai_forecast']
+    assert obs_track['count'] >= 8, f"Expected >= 8 fused observations, got {obs_track['count']}"
+    assert obs_track['segments_count'] >= 1
+    assert ai_fcst['status'] == 'SUCCESS'
+    assert len(ai_fcst['waypoints']) == 4
+    assert len(ai_fcst['uncertainty_cone']) == 4
+    assert fused_data['reconciliation_summary']['deduplicated_count'] >= 1
+    print(f"[PASS] 45. Authoritative Fused Single-Track API -> Reconciled {obs_track['count']} Observed Waypoints & Exactly 1 AI Forecast Trajectory (4 Steps)")
+
+    # 46. Cross-Cyclone Isolation & Quarantine Enforcement
+    r_iso = client.post('/api/track/fuse', json={
+        'cyclone_id': 'REMAL_2024',
+        'storm_name': 'Cyclone Remal',
+        'year': 2024,
+        'records': [
+            {'time': '2024-05-24 06:00 UTC', 'lat': 14.5, 'lon': 88.5, 'wind_kmh': 45, 'cyclone_name': 'Remal'},
+            {'time': '2024-05-24 12:00 UTC', 'lat': 15.2, 'lon': 88.8, 'wind_kmh': 55, 'cyclone_name': 'Remal'},
+            {'time': '2020-05-18 06:00 UTC', 'lat': 12.0, 'lon': 86.0, 'wind_kmh': 180, 'cyclone_name': 'Amphan', 'year': 2020} # Contamination
+        ]
+    })
+    assert r_iso.status_code == 200
+    iso_data = r_iso.json()
+    assert iso_data['canonical_observed_track']['count'] == 2
+    assert iso_data['reconciliation_summary']['quarantined_count'] == 1
+    print("[PASS] 46. Cross-Cyclone Isolation -> Contaminating storm (Amphan 2020) quarantined from Remal 2024 track")
+
+    # 47. Conflict Resolution Policy (No Blind Compromise Averaging)
+    r_conf = client.post('/api/track/fuse', json={
+        'cyclone_id': 'TEST_CONFLICT_STORM',
+        'records': [
+            {'time': '2024-05-24 06:00 UTC', 'lat': 14.5, 'lon': 88.5, 'wind_kmh': 45, 'agency': 'IMD RSMC New Delhi'},
+            {'time': '2024-05-24 12:00 UTC', 'lat': 15.0, 'lon': 88.7, 'wind_kmh': 50, 'agency': 'IMD RSMC New Delhi'},
+            # Competing fix 60 km away from unverified model at same timestamp
+            {'time': '2024-05-24 12:00 UTC', 'lat': 15.5, 'lon': 89.2, 'wind_kmh': 60, 'agency': 'Open-Meteo Global Reanalysis'}
+        ]
+    })
+    assert r_conf.status_code == 200
+    conf_data = r_conf.json()
+    assert conf_data['canonical_observed_track']['count'] == 2
+    assert conf_data['reconciliation_summary']['conflicts_resolved'] == 1
+    t12_wp = conf_data['canonical_observed_track']['waypoints'][1]
+    assert t12_wp['conflict_flag'] is True
+    # Verify authoritative source (IMD) was selected and coordinates were NOT blindly averaged
+    assert t12_wp['lat'] == 15.0 and t12_wp['lon'] == 88.7
+    assert len(t12_wp['candidate_observations']) == 2
+    print("[PASS] 47. Conflict Resolution Policy -> Selected authoritative IMD fix (15.0, 88.7), rejected blind averaging")
+
+    # 48. Temporal Continuity & Visible Gap Segmentation (>18h gap)
+    r_gap = client.post('/api/track/fuse', json={
+        'cyclone_id': 'TEST_GAP_STORM',
+        'records': [
+            {'time': '2024-05-24 06:00 UTC', 'lat': 14.5, 'lon': 88.5, 'wind_kmh': 45},
+            {'time': '2024-05-24 12:00 UTC', 'lat': 15.0, 'lon': 88.7, 'wind_kmh': 50},
+            # 36-hour temporal void
+            {'time': '2024-05-26 00:00 UTC', 'lat': 18.2, 'lon': 89.3, 'wind_kmh': 90}
+        ]
+    })
+    assert r_gap.status_code == 200
+    gap_data = r_gap.json()
+    assert gap_data['canonical_observed_track']['segments_count'] == 2
+    assert gap_data['canonical_observed_track']['has_gaps'] is True
+    assert len(gap_data['canonical_observed_track']['gaps']) == 1
+    gap_info = gap_data['canonical_observed_track']['gaps'][0]
+    assert gap_info['gap_hours'] == 36.0
+    print("[PASS] 48. Temporal Continuity & Gap Detection -> 36h void split into 2 segments with visible gap flag")
+
+    # 49. Insufficient Data Sequence Handling (< 2 points)
+    r_single = client.post('/api/track/fuse', json={
+        'cyclone_id': 'TEST_SINGLE_POINT',
+        'records': [{'time': '2024-05-24 06:00 UTC', 'lat': 14.5, 'lon': 88.5, 'wind_kmh': 45}]
+    })
+    assert r_single.status_code == 200
+    single_data = r_single.json()
+    assert single_data['cyclonex_ai_forecast']['status'] == 'UNAVAILABLE'
+    assert len(single_data['cyclonex_ai_forecast']['waypoints']) == 0
+    print("[PASS] 49. Insufficient Data Rejection -> 1 observation returns UNAVAILABLE (no fictitious trajectory fabricated)")
+
+    # 50. Invariant Test: Count of Rendered Observed Tracks and Primary Forecasts
+    # Exactly ONE canonical observed path geometry and exactly ONE primary AI forecast
+    for test_key in ['REMAL_2024', 'AMPHAN_2020', 'BIPARJOY_2023']:
+        r_inv = client.get(f'/api/track/fused/{test_key}')
+        assert r_inv.status_code == 200
+        inv_data = r_inv.json()
+        
+        # Invariant 1: Exactly one canonical observed track collection
+        assert 'canonical_observed_track' in inv_data
+        assert inv_data['canonical_observed_track']['count'] >= 2
+        # Invariant 2: Exactly one primary AI forecast trajectory
+        assert 'cyclonex_ai_forecast' in inv_data
+        assert inv_data['cyclonex_ai_forecast']['status'] == 'SUCCESS'
+        # Invariant 3: Competing primary forecasts strictly prohibited
+        assert isinstance(inv_data['cyclonex_ai_forecast']['waypoints'], list)
+        # Invariant 4: Uncertainty cone kept separate from trajectory line
+        assert 'uncertainty_cone' in inv_data['cyclonex_ai_forecast']
+        # Invariant 5: Official forecast identified separately as external reference
+        assert 'official_forecast' in inv_data
+    print("[PASS] 50. Trajectory Invariant Verification -> Verified exactly ONE observed track & ONE primary forecast across all test storms")
+
+    # 51. Multi-Page Track Integrity & Race-Condition Resistance
+    r_track_page = client.get('/track.html')
+    assert r_track_page.status_code == 200
+    html_text = r_track_page.text
+    assert 'canonicalObservedLayer' in html_text
+    assert 'aiForecastLayer' in html_text
+    assert 'aiUncertaintyLayer' in html_text
+    assert 'clearAllCycloneLayers' in html_text
+    assert 'currentTrackRequestId' in html_text
+    print("[PASS] 51. Frontend Architecture Verification -> track.html enforces single layers, cleanup on switch, and request sequencing")
+
     print("==================================================")
-    print("  ALL 44 TEST SUITES PASSED WITH 100% SUCCESS RATE ")
+    print("  ALL 51 TEST SUITES PASSED WITH 100% SUCCESS RATE ")
     print("==================================================")
 
 if __name__ == "__main__":

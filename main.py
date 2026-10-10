@@ -46,7 +46,7 @@ from jwt import PyJWKClient
 
 from ml_engine import CyclonexMLEngine
 from mosdac_client import MosdacClient, KNOWN_MOSDAC_DATASETS
-from data_pipeline import CyclonexDataPipeline
+from data_pipeline import CyclonexDataPipeline, TrackFusionEngine
 from satellite_service import satellite_service_instance, REGION_DEFINITIONS
 from nasa_client import nasa_client_instance
 from imd_service import imd_service_instance
@@ -129,6 +129,14 @@ class PredictionRequest(BaseModel):
     storm_id: Optional[str] = None
     records: List[Dict[str, Any]] = Field(..., description="Historical time-ordered coordinate and intensity records")
     horizon_steps: Optional[int] = Field(4, ge=1, le=8, description="Number of 6h prediction steps")
+
+class CustomTrackFusionRequest(BaseModel):
+    cyclone_id: str = Field(..., description="Target cyclone identifier (e.g. REMAL_2024)")
+    storm_name: Optional[str] = Field(None, description="Storm name (e.g. Cyclone Remal)")
+    year: Optional[int] = Field(None, description="Cyclone season/year")
+    basin: Optional[str] = Field("North Indian Ocean", description="Oceanic basin")
+    records: List[Dict[str, Any]] = Field(..., description="Multi-source observation records to reconcile")
+    horizon_steps: Optional[int] = Field(4, ge=1, le=8, description="Prediction horizon steps")
 
 class CycloneDetectionRequest(BaseModel):
     latitude: float = Field(..., ge=-90.0, le=90.0, description="Vortex latitude (-90 to 90)")
@@ -437,6 +445,236 @@ async def predict_track(req: PredictionRequest):
         "status": "success",
         "horizon_steps": len(forecast),
         "forecast": forecast
+    }
+
+@app.get("/api/track/fused/{cyclone_id}")
+async def get_fused_cyclone_track(cyclone_id: str):
+    """
+    Returns the Authoritative Fused Cyclone Track and CYCLONEX AI Prediction.
+    
+    Combines observations across all available official and scientific sources
+    (IMD RSMC New Delhi, MOSDAC, NASA, NOAA, and Best-Track Archives) into:
+    1. EXACTLY ONE canonical, chronological observed trajectory geometry (with gap detection).
+    2. EXACTLY ONE primary CYCLONEX AI forecast trajectory initialized at the latest valid observation.
+    3. Separate uncertainty error bounds (calibrated empirical 1-sigma cones).
+    4. Optional official RSMC forecast under independent attribution.
+    """
+    target = cyclone_id.strip().upper()
+    
+    alias_map = {
+        "TC-2023-BOB-02": "BIPARJOY_2023",
+        "BOB-02-2023": "BIPARJOY_2023",
+        "TC-2020-BOB-01": "AMPHAN_2020",
+        "TC-2024-BOB-01": "REMAL_2024",
+        "TC-2024-BOB-02": "DANA_2024"
+    }
+    
+    canonical_key = alias_map.get(target, target)
+    if canonical_key not in cyclones_cache:
+        for k, v in cyclones_cache.items():
+            if target in k or target in v.get("name", "").upper():
+                canonical_key = k
+                break
+
+    if canonical_key not in cyclones_cache:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Cyclone '{cyclone_id}' not found in archive. Available: {list(cyclones_cache.keys())}"
+        )
+
+    storm_meta = cyclones_cache[canonical_key]
+    storm_name = storm_meta.get("name", canonical_key)
+    storm_year = storm_meta.get("year")
+    basin = storm_meta.get("basin", "North Indian Ocean")
+
+    # Gather raw observations
+    raw_obs_pool = []
+    fused_sources_set = set()
+    
+    # 1. Best-Track Archive
+    archive_agency = storm_meta.get("agency", "Authoritative Best-Track Archive")
+    fused_sources_set.add(archive_agency)
+    for rec in storm_meta.get("records", []):
+        r_copy = dict(rec)
+        r_copy["cyclone_id"] = canonical_key
+        r_copy["cyclone_name"] = storm_name
+        r_copy["year"] = storm_year
+        r_copy["agency"] = archive_agency
+        raw_obs_pool.append(r_copy)
+
+    # 2. Official IMD Service Ingestion (for North Indian Ocean storms)
+    official_fcst_raw = []
+    if "REMAL" in canonical_key or "DANA" in canonical_key or "BIPARJOY" in canonical_key or "AMPHAN" in canonical_key or "Indian" in basin:
+        try:
+            imd_data = await imd_service_instance.get_cyclone_track()
+            imd_storm_name = imd_data.get("cyclone_name", "")
+            if TrackFusionEngine.normalize_cyclone_name(imd_storm_name) == TrackFusionEngine.normalize_cyclone_name(storm_name) or "REMAL" in canonical_key:
+                fused_sources_set.add("India Meteorological Department (IMD) / RSMC New Delhi")
+                for pt in imd_data.get("observed_track", []):
+                    pt_copy = dict(pt)
+                    pt_copy["cyclone_id"] = canonical_key
+                    pt_copy["cyclone_name"] = storm_name
+                    pt_copy["year"] = storm_year
+                    pt_copy["agency"] = "India Meteorological Department (IMD) / RSMC New Delhi"
+                    raw_obs_pool.append(pt_copy)
+
+                official_fcst_raw = imd_data.get("forecast_track", [])
+        except Exception as e:
+            print(f"[CYCLONEX] Warning: IMD ingest for {canonical_key} skipped: {e}")
+
+    # Step 3: Run Multi-Source Reconciliation & Data-Fusion Pipeline
+    fused = TrackFusionEngine.fuse_records(
+        target_id=canonical_key,
+        target_name=storm_name,
+        target_year=storm_year,
+        target_basin=basin,
+        raw_records=raw_obs_pool
+    )
+
+    waypoints = fused["waypoints"]
+    segments = fused["segments"]
+
+    # Step 4: Generate Single Primary CYCLONEX AI Prediction
+    if len(waypoints) < 2:
+        ai_forecast = {
+            "status": "UNAVAILABLE",
+            "reason": "Insufficient sequential observations (minimum 2 valid chronological points required for kinematic trajectory model)",
+            "initialization_time": None,
+            "model_name": "Kinematic Trajectory Extrapolation with Beta-Drift",
+            "model_version": "v2.4",
+            "waypoints": [],
+            "uncertainty_cone": []
+        }
+    else:
+        init_wp = waypoints[-1]
+        fcst_pts = CyclonexMLEngine.predict_track_and_cone(
+            history_records=waypoints,
+            horizon_steps=4
+        )
+        ai_forecast = {
+            "status": "SUCCESS",
+            "forecast_id": f"FCST-{canonical_key}-{init_wp['epoch']}-V2.4",
+            "initialization_time": init_wp["time"],
+            "initial_position": {"lat": init_wp["lat"], "lon": init_wp["lon"]},
+            "model_name": "Kinematic Trajectory Extrapolation with Beta-Drift",
+            "model_version": "v2.4",
+            "input_provenance": f"{len(waypoints)} canonical waypoints fused from {len(raw_obs_pool)} raw multi-source observations",
+            "waypoints": fcst_pts,
+            "uncertainty_cone": [
+                {
+                    "lead_hours": p["lead_hours"],
+                    "lat": p["lat"],
+                    "lon": p["lon"],
+                    "cone_radius_km": p["cone_radius_km"]
+                }
+                for p in fcst_pts
+            ]
+        }
+
+    # Step 5: Package Official Forecast (as separate external reference layer)
+    official_forecast = {
+        "available": len(official_fcst_raw) > 0,
+        "agency": "India Meteorological Department (IMD) / RSMC New Delhi",
+        "description": "Official operational forecast bulletin issued by RSMC New Delhi. Maintained as an independent visual reference layer.",
+        "waypoints": official_fcst_raw
+    }
+
+    return {
+        "status": "SUCCESS",
+        "cyclone_id": canonical_key,
+        "cyclone_name": storm_name,
+        "year": storm_year,
+        "basin": basin,
+        "track_version": "v2.4-authoritative-fused",
+        "fused_sources": list(fused_sources_set),
+        "canonical_observed_track": {
+            "count": len(waypoints),
+            "segments_count": len(segments),
+            "segments": segments,
+            "waypoints": waypoints,
+            "has_gaps": fused["has_gaps"],
+            "gaps": fused["gaps"]
+        },
+        "cyclonex_ai_forecast": ai_forecast,
+        "official_forecast": official_forecast,
+        "reconciliation_summary": fused["reconciliation_summary"]
+    }
+
+
+@app.post("/api/track/fuse")
+async def fuse_custom_track(req: CustomTrackFusionRequest):
+    """
+    Direct API endpoint to reconcile an arbitrary set of multi-source cyclone observations
+    into one authoritative canonical observed track and generate the primary AI forecast.
+    """
+    if not req.records or len(req.records) == 0:
+        raise HTTPException(status_code=400, detail="Cannot fuse track without observation records.")
+
+    storm_name = req.storm_name or req.cyclone_id
+    fused = TrackFusionEngine.fuse_records(
+        target_id=req.cyclone_id,
+        target_name=storm_name,
+        target_year=req.year,
+        target_basin=req.basin or "North Indian Ocean",
+        raw_records=req.records
+    )
+
+    waypoints = fused["waypoints"]
+    segments = fused["segments"]
+
+    if len(waypoints) < 2:
+        ai_forecast = {
+            "status": "UNAVAILABLE",
+            "reason": "Insufficient sequential observations (minimum 2 valid chronological points required)",
+            "initialization_time": None,
+            "model_name": "Kinematic Trajectory Extrapolation with Beta-Drift",
+            "model_version": "v2.4",
+            "waypoints": [],
+            "uncertainty_cone": []
+        }
+    else:
+        init_wp = waypoints[-1]
+        fcst_pts = CyclonexMLEngine.predict_track_and_cone(
+            history_records=waypoints,
+            horizon_steps=req.horizon_steps or 4
+        )
+        ai_forecast = {
+            "status": "SUCCESS",
+            "forecast_id": f"FCST-{req.cyclone_id}-{init_wp['epoch']}-V2.4",
+            "initialization_time": init_wp["time"],
+            "initial_position": {"lat": init_wp["lat"], "lon": init_wp["lon"]},
+            "model_name": "Kinematic Trajectory Extrapolation with Beta-Drift",
+            "model_version": "v2.4",
+            "input_provenance": f"{len(waypoints)} canonical waypoints fused from {len(req.records)} raw records",
+            "waypoints": fcst_pts,
+            "uncertainty_cone": [
+                {
+                    "lead_hours": p["lead_hours"],
+                    "lat": p["lat"],
+                    "lon": p["lon"],
+                    "cone_radius_km": p["cone_radius_km"]
+                }
+                for p in fcst_pts
+            ]
+        }
+
+    return {
+        "status": "SUCCESS",
+        "cyclone_id": req.cyclone_id,
+        "cyclone_name": storm_name,
+        "year": req.year,
+        "basin": req.basin,
+        "track_version": "v2.4-authoritative-fused",
+        "canonical_observed_track": {
+            "count": len(waypoints),
+            "segments_count": len(segments),
+            "segments": segments,
+            "waypoints": waypoints,
+            "has_gaps": fused["has_gaps"],
+            "gaps": fused["gaps"]
+        },
+        "cyclonex_ai_forecast": ai_forecast,
+        "reconciliation_summary": fused["reconciliation_summary"]
     }
 
 @app.get("/api/ml/evaluation")
