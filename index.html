@@ -467,8 +467,8 @@
   </main>
 
   <!-- Cyclone Dataset Bundle & Shared Navigation -->
-  <script src="cyclones_dataset.js"></script>
-  <script src="shared_nav.js"></script>
+  <script src="cyclones_dataset.js" defer></script>
+  <script src="shared_nav.js" defer></script>
 
   <!-- Homepage Dynamic Telemetry Script -->
   <script>
@@ -627,7 +627,7 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('DOMContentLoaded', () => {
       initHeroRadar();
 
       // Listen for storm dropdown changes from shared_nav
@@ -637,85 +637,118 @@
         }
       });
 
-      const apiBase = window.CYCLONEX.apiBase || '';
+      const apiBase = (window.CYCLONEX && window.CYCLONEX.apiBase) || '';
 
-      // 1. Fetch Backend Health
-      try {
-        const resHealth = await fetch(`${apiBase}/api/health`);
-        if (resHealth.ok) {
-          const h = await resHealth.json();
-          document.getElementById('metricSystemHealth').textContent = 'ONLINE (NOMINAL)';
-          document.getElementById('metricSystemHealth').style.color = '#65BDD1';
-          document.getElementById('metricSystemSub').textContent = `${h.registered_cyclones || 9} Verified Cyclones Ingested`;
-        } else {
-          throw new Error();
-        }
-      } catch {
-        document.getElementById('metricSystemHealth').textContent = 'STANDALONE MODE';
-        document.getElementById('metricSystemHealth').style.color = '#f59e0b';
-        document.getElementById('metricSystemSub').textContent = 'Local Cache Active';
-      }
-
-      // 2. Fetch Live Basin Surveillance Status
-      try {
-        const resLive = await fetch(`${apiBase}/api/detect/live`);
-        if (resLive.ok) {
-          const liveData = await resLive.json();
-
-          // Update Status Cards
-          if (liveData.status === 'QUIET_BASIN') {
-            document.getElementById('metricBasinStatus').textContent = 'QUIET BASIN';
-            document.getElementById('metricBasinStatus').style.color = '#65BDD1';
-            document.getElementById('metricBasinSub').textContent = 'No Closed Cyclonic Circulation Active';
-          } else {
-            document.getElementById('metricBasinStatus').textContent = 'CYCLONE ACTIVE';
-            document.getElementById('metricBasinStatus').style.color = '#ff6b6b';
-            document.getElementById('metricBasinSub').textContent = 'Active Vortex Detected in Basin';
+      // 1. Non-blocking parallel background telemetry fetchers
+      async function loadHealth() {
+        try {
+          const resHealth = await fetch(`${apiBase}/api/health`);
+          if (resHealth.ok) {
+            const h = await resHealth.json();
+            if (window.CYCLONEX) window.CYCLONEX.health = h;
+            const healthEl = document.getElementById('metricSystemHealth');
+            const subEl = document.getElementById('metricSystemSub');
+            if (healthEl) {
+              healthEl.textContent = 'ONLINE (NOMINAL)';
+              healthEl.style.color = '#65BDD1';
+            }
+            if (subEl) {
+              subEl.textContent = `${h.registered_cyclones || h.available_storms_count || 9} Verified Cyclones Ingested`;
+            }
           }
-
-          document.getElementById('metricObsTime').textContent = liveData.surveillance_timestamp ? liveData.surveillance_timestamp.replace(' UTC', 'Z') : 'Current UTC';
-          document.getElementById('heroSatTime').textContent = liveData.surveillance_timestamp || 'Operational Pass Active';
-
-          // Update Section E: Live Ambient Surveillance Readings
-          const amb = liveData.ambient_telemetry;
-          if (amb && amb.surveillance_readings) {
-            const readingsHtml = amb.surveillance_readings.map(r => `
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(143,196,216,0.1); font-size: var(--text-xs);">
-                <div>
-                  <span style="font-weight: 600; color: var(--ice);">${r.basin_point}</span>
-                  <span style="display: block; font-size: var(--text-2xs); color: var(--sky-blue);">${r.lat}°N, ${r.lon}°E</span>
-                </div>
-                <div style="text-align: right;">
-                  <span style="color: var(--ice);">${r.wind_speed_kmh} km/h</span>
-                  <span style="display: block; font-size: var(--text-2xs); color: var(--mist);">${r.pressure_msl_hpa} hPa</span>
-                </div>
-              </div>
-            `).join('');
-
-            document.getElementById('liveObsContainer').innerHTML = `
-              <div style="margin-bottom: 0.6rem; font-size: var(--text-2xs); color: var(--mist);">
-                <b>Basin Mean Wind:</b> ${amb.mean_surface_wind_kmh} km/h • <b>Mean MSL Pressure:</b> ${amb.mean_surface_pressure_hpa} hPa
-              </div>
-              <div>${readingsHtml}</div>
-            `;
+        } catch {
+          const healthEl = document.getElementById('metricSystemHealth');
+          const subEl = document.getElementById('metricSystemSub');
+          if (healthEl) {
+            healthEl.textContent = 'STANDALONE MODE';
+            healthEl.style.color = '#f59e0b';
           }
+          if (subEl) subEl.textContent = 'Local Cache Active';
         }
-      } catch (err) {
-        document.getElementById('metricBasinStatus').textContent = 'QUIET / UNVERIFIED';
-        document.getElementById('metricObsTime').textContent = 'Historical Baseline';
       }
 
-      // 3. Fetch Satellite Metadata
-      try {
-        const resSat = await fetch(`${apiBase}/api/satellite/metadata?storm_key=LIVE&channel=MODIS_TrueColor`);
-        if (resSat.ok) {
-          const satData = await resSat.json();
-          document.getElementById('heroSatPlatform').textContent = `${satData.satellite_platform} (${satData.observation_date})`;
-          document.getElementById('heroSatTime').textContent = satData.observation_timestamp_utc;
+      async function loadLiveBasin() {
+        try {
+          const resLive = await fetch(`${apiBase}/api/detect/live`);
+          if (resLive.ok) {
+            const liveData = await resLive.json();
+            const basinEl = document.getElementById('metricBasinStatus');
+            const basinSubEl = document.getElementById('metricBasinSub');
+            const obsTimeEl = document.getElementById('metricObsTime');
+            const satTimeEl = document.getElementById('heroSatTime');
+
+            if (liveData.status === 'QUIET_BASIN') {
+              if (basinEl) {
+                basinEl.textContent = 'QUIET BASIN';
+                basinEl.style.color = '#65BDD1';
+              }
+              if (basinSubEl) basinSubEl.textContent = 'No Closed Cyclonic Circulation Active';
+            } else {
+              if (basinEl) {
+                basinEl.textContent = 'CYCLONE ACTIVE';
+                basinEl.style.color = '#ff6b6b';
+              }
+              if (basinSubEl) basinSubEl.textContent = 'Active Vortex Detected in Basin';
+            }
+
+            if (obsTimeEl) {
+              obsTimeEl.textContent = liveData.surveillance_timestamp ? liveData.surveillance_timestamp.replace(' UTC', 'Z') : 'Current UTC';
+            }
+            if (satTimeEl) {
+              satTimeEl.textContent = liveData.surveillance_timestamp || 'Operational Pass Active';
+            }
+
+            const amb = liveData.ambient_telemetry;
+            const obsContainer = document.getElementById('liveObsContainer');
+            if (amb && amb.surveillance_readings && obsContainer) {
+              const readingsHtml = amb.surveillance_readings.map(r => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(143,196,216,0.1); font-size: var(--text-xs);">
+                  <div>
+                    <span style="font-weight: 600; color: var(--ice);">${r.basin_point}</span>
+                    <span style="display: block; font-size: var(--text-2xs); color: var(--sky-blue);">${r.lat}°N, ${r.lon}°E</span>
+                  </div>
+                  <div style="text-align: right;">
+                    <span style="color: var(--ice);">${r.wind_speed_kmh} km/h</span>
+                    <span style="display: block; font-size: var(--text-2xs); color: var(--mist);">${r.pressure_msl_hpa} hPa</span>
+                  </div>
+                </div>
+              `).join('');
+
+              obsContainer.innerHTML = `
+                <div style="margin-bottom: 0.6rem; font-size: var(--text-2xs); color: var(--mist);">
+                  <b>Basin Mean Wind:</b> ${amb.mean_surface_wind_kmh} km/h • <b>Mean MSL Pressure:</b> ${amb.mean_surface_pressure_hpa} hPa
+                </div>
+                <div>${readingsHtml}</div>
+              `;
+            }
+          }
+        } catch (err) {
+          const basinEl = document.getElementById('metricBasinStatus');
+          const obsTimeEl = document.getElementById('metricObsTime');
+          if (basinEl) basinEl.textContent = 'QUIET / UNVERIFIED';
+          if (obsTimeEl) obsTimeEl.textContent = 'Historical Baseline';
         }
-      } catch (e) {
-        // Fallback default
       }
+
+      async function loadSatMetadata() {
+        try {
+          const resSat = await fetch(`${apiBase}/api/satellite/metadata?storm_key=LIVE&channel=MODIS_TrueColor`);
+          if (resSat.ok) {
+            const satData = await resSat.json();
+            const satPlatEl = document.getElementById('heroSatPlatform');
+            const satTimeEl = document.getElementById('heroSatTime');
+            if (satPlatEl) satPlatEl.textContent = `${satData.satellite_platform} (${satData.observation_date})`;
+            if (satTimeEl && satData.observation_timestamp_utc) satTimeEl.textContent = satData.observation_timestamp_utc;
+          }
+        } catch (e) {
+          // Fallback default
+        }
+      }
+
+      // Execute non-blocking parallel fetches to eliminate waterfall latency
+      loadHealth();
+      loadLiveBasin();
+      loadSatMetadata();
     });
   </script>
 </body>

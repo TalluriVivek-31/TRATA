@@ -72,7 +72,7 @@ class IMDService:
     def __init__(self):
         self._cache: Dict[str, Dict[str, Any]] = {}
         self._cache_ttl = 300  # 5 minutes TTL
-        self._client_timeout = 8.0
+        self._client_timeout = 4.0
 
     def _get_headers(self) -> Dict[str, str]:
         headers = {

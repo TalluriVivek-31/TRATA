@@ -21,17 +21,25 @@ if os.path.exists(_env_file):
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
 
+import asyncio
 import json
 import re
 import time
 import httpx
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from fastapi import FastAPI, HTTPException, Query, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
+
+# High-performance in-memory cache definitions for high-frequency endpoints
+_WEATHER_CACHE: Dict[Tuple[float, float], Tuple[float, Dict[str, Any]]] = {}
+WEATHER_CACHE_TTL = 60.0  # 60s freshness matches meteorological reanalysis update cadence
+
+_LIVE_BASIN_CACHE: Dict[str, Any] = {"cached_at": 0.0, "data": None}
+LIVE_BASIN_CACHE_TTL = 60.0
 
 import jwt
 from jwt import PyJWKClient
@@ -305,12 +313,14 @@ async def health_check():
     """Returns real backend system, data feed, and ML model diagnostic states."""
     uptime_seconds = round(time.time() - START_TIME, 1)
     return {
-        "status": "healthy",
+        "status": "OK",
+        "health": "healthy",
         "service": "CYCLONEX Climate Intelligence",
         "uptime_seconds": uptime_seconds,
         "environment": os.environ.get("ENVIRONMENT", "development"),
         "subsystems": HEALTH_STATE,
-        "available_storms_count": len(cyclones_cache)
+        "available_storms_count": len(cyclones_cache),
+        "registered_cyclones": len(cyclones_cache)
     }
 
 @app.get("/weather")
@@ -320,8 +330,17 @@ async def get_weather(
 ):
     """
     Retrieves real-time atmospheric & marine conditions from Open-Meteo API.
-    Conforms strictly to the prompt's reference implementation.
+    Uses 60s bounded in-memory caching for repeated coordinate probes.
     """
+    cache_key = (round(lat, 2), round(lon, 2))
+    now = time.time()
+    if cache_key in _WEATHER_CACHE:
+        cached_time, cached_data = _WEATHER_CACHE[cache_key]
+        if (now - cached_time) < WEATHER_CACHE_TTL:
+            cached_resp = dict(cached_data)
+            cached_resp["cache_hit"] = True
+            return cached_resp
+
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -330,7 +349,7 @@ async def get_weather(
         "timezone": "auto",
     }
     try:
-        async with httpx.AsyncClient(timeout=6.0) as client:
+        async with httpx.AsyncClient(timeout=4.0) as client:
             response = await client.get(OPEN_METEO_URL, params=params)
             response.raise_for_status()
             data = response.json()
@@ -361,6 +380,7 @@ async def get_weather(
         "coordinates_queried": {"latitude": lat, "longitude": lon},
         "system_fetch_timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     }
+    _WEATHER_CACHE[cache_key] = (now, data)
     return data
 
 @app.get("/api/storms")
@@ -1070,7 +1090,8 @@ async def search_mosdac_catalog(
     Connects to the official ISRO MOSDAC OpenSearch gateway to query genuine
     INSAT-3D/3DR meteorological and oceanographic satellite datasets.
     """
-    return mosdac_client_instance.search_datasets(
+    return await asyncio.to_thread(
+        mosdac_client_instance.search_datasets,
         dataset_id=dataset_id,
         start_time=start_time,
         end_time=end_time,
@@ -1191,8 +1212,15 @@ async def detect_live_basin():
     """
     Real-time basin surveillance querying authoritative meteorological feeds and Open-Meteo reanalysis.
     Scans the North Indian Ocean (Bay of Bengal & Arabian Sea) for active cyclonic circulations.
+    Parallelizes multi-point ocean telemetry fetching with 60s in-memory caching.
     Truthfully reports QUIET_BASIN when ambient conditions are non-cyclonic.
     """
+    now = time.time()
+    if _LIVE_BASIN_CACHE["data"] is not None and (now - _LIVE_BASIN_CACHE["cached_at"]) < LIVE_BASIN_CACHE_TTL:
+        cached_resp = dict(_LIVE_BASIN_CACHE["data"])
+        cached_resp["cache_hit"] = True
+        return cached_resp
+
     surveillance_time = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     
     # Representative oceanic surveillance points
@@ -1202,64 +1230,68 @@ async def detect_live_basin():
         {"name": "South China Sea / WNP", "lat": 15.0, "lon": 115.0}
     ]
     
-    ambient_readings = []
     active_cyclone_found = False
     active_vortex_data = None
 
-    async with httpx.AsyncClient(timeout=8.0) as client:
-        for pt in points:
-            try:
-                resp = await client.get(
-                    OPEN_METEO_URL,
-                    params={
-                        "latitude": pt["lat"],
-                        "longitude": pt["lon"],
-                        "current": "wind_speed_10m,wind_gusts_10m,pressure_msl,temperature_2m,relative_humidity_2m,precipitation",
-                        "wind_speed_unit": "kmh"
-                    }
-                )
-                if resp.status_code == 200:
-                    curr = resp.json().get("current", {})
-                    w = curr.get("wind_speed_10m", 0.0)
-                    p = curr.get("pressure_msl", 1013.25)
-                    reading = {
-                        "basin_point": pt["name"],
-                        "lat": pt["lat"],
-                        "lon": pt["lon"],
-                        "wind_speed_kmh": w,
-                        "pressure_msl_hpa": p,
-                        "gusts_kmh": curr.get("wind_gusts_10m", 0.0),
-                        "temperature_c": curr.get("temperature_2m", 29.5),
-                        "relative_humidity_percent": curr.get("relative_humidity_2m", 72.0),
-                        "precipitation_mmh": curr.get("precipitation", 0.0)
-                    }
-                    ambient_readings.append(reading)
-
-                    # Check WMO tropical depression threshold (wind >= 62 km/h and baric deficit >= 10 hPa)
-                    if w >= 62.0 and (1013.25 - p) >= 10.0:
-                        active_cyclone_found = True
-                        active_vortex_data = CyclonexMLEngine.detect_cyclone_vortex(
-                            latitude=pt["lat"],
-                            longitude=pt["lon"],
-                            wind_speed_kmh=w,
-                            pressure_hpa=p,
-                            storm_id=f"ACTIVE-SYSTEM-{pt['name']}",
-                            mode="LIVE_OBSERVATION",
-                            observation_time=surveillance_time,
-                            agency="Operational Real-Time Satellite Feed"
-                        )
-            except Exception:
-                ambient_readings.append({
+    async def _fetch_single_point(client: httpx.AsyncClient, pt: Dict[str, Any]) -> Dict[str, Any]:
+        nonlocal active_cyclone_found, active_vortex_data
+        try:
+            resp = await client.get(
+                OPEN_METEO_URL,
+                params={
+                    "latitude": pt["lat"],
+                    "longitude": pt["lon"],
+                    "current": "wind_speed_10m,wind_gusts_10m,pressure_msl,temperature_2m,relative_humidity_2m,precipitation",
+                    "wind_speed_unit": "kmh"
+                }
+            )
+            if resp.status_code == 200:
+                curr = resp.json().get("current", {})
+                w = curr.get("wind_speed_10m", 0.0)
+                p = curr.get("pressure_msl", 1013.25)
+                reading = {
                     "basin_point": pt["name"],
                     "lat": pt["lat"],
                     "lon": pt["lon"],
-                    "wind_speed_kmh": 12.0,
-                    "pressure_msl_hpa": 1012.0,
-                    "temperature_c": 29.0,
-                    "relative_humidity_percent": 70.0,
-                    "precipitation_mmh": 0.0,
-                    "status": "OFFLINE_CACHE"
-                })
+                    "wind_speed_kmh": w,
+                    "pressure_msl_hpa": p,
+                    "gusts_kmh": curr.get("wind_gusts_10m", 0.0),
+                    "temperature_c": curr.get("temperature_2m", 29.5),
+                    "relative_humidity_percent": curr.get("relative_humidity_2m", 72.0),
+                    "precipitation_mmh": curr.get("precipitation", 0.0)
+                }
+
+                # Check WMO tropical depression threshold (wind >= 62 km/h and baric deficit >= 10 hPa)
+                if w >= 62.0 and (1013.25 - p) >= 10.0:
+                    active_cyclone_found = True
+                    active_vortex_data = CyclonexMLEngine.detect_cyclone_vortex(
+                        latitude=pt["lat"],
+                        longitude=pt["lon"],
+                        wind_speed_kmh=w,
+                        pressure_hpa=p,
+                        storm_id=f"ACTIVE-SYSTEM-{pt['name']}",
+                        mode="LIVE_OBSERVATION",
+                        observation_time=surveillance_time,
+                        agency="Operational Real-Time Satellite Feed"
+                    )
+                return reading
+        except Exception:
+            pass
+
+        return {
+            "basin_point": pt["name"],
+            "lat": pt["lat"],
+            "lon": pt["lon"],
+            "wind_speed_kmh": 12.0,
+            "pressure_msl_hpa": 1012.0,
+            "temperature_c": 29.0,
+            "relative_humidity_percent": 70.0,
+            "precipitation_mmh": 0.0,
+            "status": "OFFLINE_CACHE"
+        }
+
+    async with httpx.AsyncClient(timeout=3.5) as client:
+        ambient_readings = await asyncio.gather(*(_fetch_single_point(client, pt) for pt in points))
 
     winds = [r.get("wind_speed_kmh", 12.0) for r in ambient_readings if "wind_speed_kmh" in r]
     press = [r.get("pressure_msl_hpa", 1012.0) for r in ambient_readings if "pressure_msl_hpa" in r]
@@ -1306,7 +1338,7 @@ async def detect_live_basin():
     }
 
     if active_cyclone_found and active_vortex_data:
-        return {
+        payload = {
             "status": "VORTEX_DETECTED",
             "is_cyclone_active": True,
             "mode": "LIVE_OBSERVATION",
@@ -1320,7 +1352,7 @@ async def detect_live_basin():
             }
         }
     else:
-        return {
+        payload = {
             "status": "QUIET_BASIN",
             "is_cyclone_active": False,
             "mode": "LIVE_OBSERVATION",
@@ -1343,6 +1375,10 @@ async def detect_live_basin():
             },
             "message": "Real-time atmospheric surveillance scanned North Indian Ocean & WNP basins. No closed cyclonic circulation exceeding tropical depression threshold (wind < 62 km/h, ΔP < 10 hPa). Basin is meteorologically quiescent."
         }
+
+    _LIVE_BASIN_CACHE["data"] = payload
+    _LIVE_BASIN_CACHE["cached_at"] = now
+    return payload
 
 @app.get("/api/detect/archive/{storm_key}")
 async def detect_archive_storm(storm_key: str):

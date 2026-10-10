@@ -389,22 +389,26 @@
     const apiBase = window.CYCLONEX.apiBase;
 
     try {
-      const res = await fetch(`${apiBase}/api/health`, { cache: 'no-cache' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status === 'OK') {
-          if (statusText) statusText.textContent = 'ONLINE';
-          if (mobileText) mobileText.textContent = 'ONLINE';
-          if (statusDot) {
-            statusDot.style.background = '#65BDD1';
-            statusDot.style.boxShadow = '0 0 8px #65BDD1';
-          }
-          if (mobileDot) {
-            mobileDot.style.background = '#65BDD1';
-            mobileDot.style.boxShadow = '0 0 8px #65BDD1';
-          }
-          return;
+      let data = window.CYCLONEX && window.CYCLONEX.health;
+      if (!data) {
+        const res = await fetch(`${apiBase}/api/health`);
+        if (res.ok) {
+          data = await res.json();
+          if (window.CYCLONEX) window.CYCLONEX.health = data;
         }
+      }
+      if (data && (data.status === 'OK' || data.status === 'healthy')) {
+        if (statusText) statusText.textContent = 'ONLINE';
+        if (mobileText) mobileText.textContent = 'ONLINE';
+        if (statusDot) {
+          statusDot.style.background = '#65BDD1';
+          statusDot.style.boxShadow = '0 0 8px #65BDD1';
+        }
+        if (mobileDot) {
+          mobileDot.style.background = '#65BDD1';
+          mobileDot.style.boxShadow = '0 0 8px #65BDD1';
+        }
+        return;
       }
       throw new Error('Non-OK health response');
     } catch {

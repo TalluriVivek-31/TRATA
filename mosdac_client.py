@@ -14,13 +14,17 @@ import time
 import urllib.request
 import urllib.parse
 import urllib.error
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 
 MOSDAC_SEARCH_URL = "https://mosdac.gov.in/apios/datasets.json"
 MOSDAC_TOKEN_URL = "https://mosdac.gov.in/download_api/gettoken"
 MOSDAC_DOWNLOAD_URL = "https://mosdac.gov.in/download_api/download"
 MOSDAC_REFRESH_URL = "https://mosdac.gov.in/download_api/refresh-token"
 MOSDAC_LOGOUT_URL = "https://mosdac.gov.in/download_api/logout"
+
+# High-performance in-memory cache for MOSDAC metadata discovery (5 minutes TTL)
+_MOSDAC_SEARCH_CACHE: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+MOSDAC_CACHE_TTL_SECONDS = 300.0
 
 # Official Candidate Satellite Products for Cyclone Monitoring on MOSDAC
 KNOWN_MOSDAC_DATASETS = {
@@ -106,6 +110,15 @@ class MosdacClient:
         count = max(1, min(count, 50))  # Bounded pagination: 1 to 50 items per page
         start_index = max(1, start_index)
 
+        cache_key = f"{dataset_id}:{start_time}:{end_time}:{count}:{bounding_box}:{start_index}"
+        now = time.time()
+        if cache_key in _MOSDAC_SEARCH_CACHE:
+            cached_time, cached_payload = _MOSDAC_SEARCH_CACHE[cache_key]
+            if (now - cached_time) < MOSDAC_CACHE_TTL_SECONDS:
+                resp = dict(cached_payload)
+                resp["cache_hit"] = True
+                return resp
+
         params = {
             "datasetId": dataset_id,
             "count": str(count),
@@ -135,7 +148,7 @@ class MosdacClient:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=12) as response:
+            with urllib.request.urlopen(req, timeout=5.0) as response:
                 status_code = response.getcode()
                 if status_code == 200:
                     raw_content = response.read().decode("utf-8", errors="replace")
@@ -168,7 +181,7 @@ class MosdacClient:
                         "relevance": "Meteorological observation and archival tracking"
                     })
 
-                    return {
+                    payload = {
                         "status": "SUCCESS",
                         "provider": "MOSDAC, SAC-ISRO, India",
                         "query_timestamp_utc": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
@@ -188,6 +201,8 @@ class MosdacClient:
                             "portal_url": "https://mosdac.gov.in"
                         }
                     }
+                    _MOSDAC_SEARCH_CACHE[cache_key] = (now, payload)
+                    return payload
                 else:
                     return {
                         "status": "UPSTREAM_ERROR",

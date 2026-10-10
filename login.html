@@ -131,19 +131,18 @@
     </section>
   </main>
 
-  <!-- Dataset & Shared Header Scripts -->
-  <script src="cyclones_dataset.js"></script>
-  <script src="shared_nav.js"></script>
+  <!-- Shared Header Script -->
+  <script src="shared_nav.js" defer></script>
 
   <!-- 3D Tubes Cursor Background & Procedural Fallback Engine -->
   <script type="module">
-    import TubesCursor from './vendor/tubes1.min.js';
     import { signInOperator, trackEvent, mapEmployeeIdToEmail } from './firebase_config.js';
 
     // =========================================================================
     // 3D TUBES BACKGROUND INITIALIZATION (threejs-components / WebGL)
+    // Progressively enhanced: loads asynchronously in background without blocking form interactivity
     // =========================================================================
-    (function init3DBackground() {
+    (async function init3DBackground() {
       const canvas = document.getElementById('loginCycloneCanvas');
       if (!canvas) return;
 
@@ -171,6 +170,9 @@
       }
 
       try {
+        // Asynchronously stream 775KB 3D WebGL bundle without blocking login card render
+        const { default: TubesCursor } = await import('./vendor/tubes1.min.js');
+
         // Initialize 3D Tubes Cursor with CYCLONEX Oceanic Palette
         // Palette: Muted Teal (#62929E), Slate Blue (#546A7B), Charcoal (#393D3F), Cool White (#FDFDFF)
         const tubesApp = TubesCursor(canvas, {
