@@ -47,11 +47,21 @@ mosdac_client_instance = MosdacClient()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start NOAA satellite background poller and trigger initial fetch
-    satellite_service_instance.start_background_poller()
+    # Only start NOAA satellite background poller in long-running persistent server environments
+    # Serverless runtimes (Vercel / Lambda) freeze background loops and time out on cold starts
+    is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+    if not is_serverless:
+        try:
+            satellite_service_instance.start_background_poller()
+        except Exception as e:
+            print(f"[CYCLONEX] Warning: Could not start background poller: {e}")
     yield
     # Shutdown: Cleanly terminate poller task
-    await satellite_service_instance.stop_background_poller()
+    if not is_serverless:
+        try:
+            await satellite_service_instance.stop_background_poller()
+        except Exception:
+            pass
 
 # Initialize FastAPI App
 app = FastAPI(

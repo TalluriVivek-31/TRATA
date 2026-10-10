@@ -1,0 +1,17 @@
+# Nested duplicate folder containing 33.6 MB offline research model and notebooks
+Typhoon_Path-master/
+*.pkl
+
+# Test and audit scripts
+test_*.py
+audit_browser.py
+
+# Unused verification screenshots
+track_workstation_verified.png
+
+# Python bytecode and environment
+__pycache__/
+*.pyc
+*.pyo
+.env
+.git/
