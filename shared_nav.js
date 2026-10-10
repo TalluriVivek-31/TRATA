@@ -90,8 +90,8 @@
     headerContainer.innerHTML = `
       <header class="cyclonex-header-bar" role="banner">
         <div class="header-left">
-          <a href="index.html" class="header-brand-logo" aria-label="CYCLONEX Homepage">
-            <span class="brand-dash">—</span> CYCLONEX
+          <a href="index.html" class="header-brand-logo" aria-label="CYCLOTRACK Homepage">
+            <span class="brand-dash">—</span> CYCLOTRACK
           </a>
           <span class="header-sih-tag">SIH 26070</span>
         </div>
@@ -178,7 +178,7 @@
       <div id="mobileNavDrawer" class="mobile-nav-drawer" aria-hidden="true">
         <div class="mobile-nav-header">
           <div style="display:flex; align-items:center; gap:0.5rem;">
-            <span class="header-brand-logo" style="font-size:1.3rem;"><span class="brand-dash">—</span> CYCLONEX</span>
+            <span class="header-brand-logo" style="font-size:1.3rem;"><span class="brand-dash">—</span> CYCLOTRACK</span>
           </div>
           <button id="mobileNavClose" class="mobile-nav-close" aria-label="Close navigation menu">&times;</button>
         </div>
