@@ -1,61 +1,15 @@
 {
   "version": 2,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/overview",
-      "destination": "/index.html"
-    },
+      "src": "main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
     {
-      "source": "/login",
-      "destination": "/login.html"
-    },
-    {
-      "source": "/detection",
-      "destination": "/detection.html"
-    },
-    {
-      "source": "/classification",
-      "destination": "/classification.html"
-    },
-    {
-      "source": "/track",
-      "destination": "/track.html"
-    },
-    {
-      "source": "/intensity",
-      "destination": "/intensity.html"
-    },
-    {
-      "source": "/data-explorer",
-      "destination": "/data-explorer.html"
-    },
-    {
-      "source": "/model-lab",
-      "destination": "/model-lab.html"
-    },
-    {
-      "source": "/system",
-      "destination": "/system.html"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/weather",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/docs",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/redoc",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/openapi.json",
-      "destination": "/api/index.py"
+      "src": "/(.*)",
+      "dest": "main.py"
     }
   ]
 }
