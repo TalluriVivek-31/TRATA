@@ -8,72 +8,135 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+
+  <!-- Interactive Visualization Engine (Local Plotly with CDN fallback) -->
+  <script src="vendor/plotly.min.js"></script>
+  <script>
+    if (typeof Plotly === 'undefined') {
+      document.write('<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"><\/script>');
+    }
+  </script>
+  <style>
+    .intensity-view-toggle {
+      background: rgba(11,45,77,0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 0.35rem 0.85rem;
+      font-size: 0.72rem;
+      color: var(--mist);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .intensity-view-toggle.active {
+      background: rgba(40,124,168,0.45);
+      border-color: var(--accent-cyan);
+      color: var(--ice);
+      font-weight: 600;
+    }
+  </style>
 </head>
 <body>
   <div class="noise-overlay" aria-hidden="true"></div>
   <div id="cyclonexSharedHeader"></div>
 
   <main class="page-container">
-    <header class="page-header-banner">
+    <header class="page-header-banner" style="padding: 1.2rem 2rem 0.6rem; margin-bottom: 0.8rem;">
       <span class="utility-label utility-label--accent">PAGE 05 // THERMODYNAMIC & INTENSITY TIME SERIES</span>
       <h1 class="page-title">INTENSITY &<br>ATMOSPHERE</h1>
       <p class="page-desc">
-        Comprehensive environmental thermodynamics, central minimum baric deficit, and sustained wind acceleration. Combines best-track observations with live Open-Meteo atmospheric probes.
+        Comprehensive environmental thermodynamics, central minimum baric deficit, and sustained wind acceleration.
+        Combines verified best-track observations with AM-ConvGRU / kinematic intensity predictions and empirical confidence intervals.
       </p>
     </header>
 
-    <div class="content-grid-workstation" style="grid-template-columns: 1fr 1fr;">
+    <div class="content-grid-workstation" style="grid-template-columns: 1fr;">
       
-      <!-- Historical Intensity Evolution Chart -->
-      <section class="workstation-card" aria-labelledby="timeSeriesTitle">
-        <span class="utility-label">TIME-SERIES PROFILE</span>
-        <h2 id="timeSeriesTitle" style="font-family: var(--font-heading); font-size: 2rem; color: var(--ice); margin: 0.3rem 0 1.2rem;">WIND & PRESSURE LIFECYCLE</h2>
+      <!-- Top Section: Interactive Dual-Axis Intensity Profile -->
+      <section class="workstation-card" aria-labelledby="timeSeriesTitle" style="padding: 1.5rem; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding: 0.5rem 1rem; flex-wrap: wrap; gap: 0.8rem;">
+          <div>
+            <span class="utility-label">AUTHORITATIVE TIME-SERIES PROFILE & INTENSITY EVOLUTION</span>
+            <div style="display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap;">
+              <span id="activeIntensityStormTitle" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice);">CYCLONE REMAL (2024)</span>
+              <span id="intensityProvenanceBadge" class="provenance-tag live" style="font-size: 0.62rem;">VERIFIED BEST-TRACK ARCHIVE</span>
+            </div>
+          </div>
 
-        <div style="height: 320px; position: relative; background: rgba(7,29,51,0.6); border-radius: 1.5rem; border: 1px solid var(--border-subtle); padding: 1.5rem;">
-          <canvas id="intensityChartCanvas" style="width: 100%; height: 100%;"></canvas>
+          <!-- Dual-Mode Switcher: Interactive Browser Plotly vs Server-Side Matplotlib -->
+          <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+            <button id="btnViewPlotly" class="intensity-view-toggle active">⚡ INTERACTIVE PLOTLY</button>
+            <button id="btnViewMatplotlib" class="intensity-view-toggle">📊 PYTHON MATPLOTLIB FIGURE</button>
+            <a id="btnDownloadMpl" href="/api/intensity/plot?storm_key=REMAL_2024&format=png" download="CYCLONEX_INTENSITY_REMAL.png" class="live-api-sync-btn" style="text-decoration: none; padding: 0.35rem 0.8rem;" title="Download publication-quality Python Matplotlib figure">
+              ⬇️ EXPORT MATPLOTLIB PNG
+            </a>
+          </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; margin-top: 1.5rem; font-size: 0.78rem; color: var(--mist);">
-          <div><span style="display:inline-block; width:10px; height:10px; background:#65BDD1; border-radius:50%; margin-right:6px;"></span>Sustained Wind Speed (km/h)</div>
-          <div><span style="display:inline-block; width:10px; height:10px; background:#8FC4D8; border-radius:50%; margin-right:6px;"></span>Central Pressure (hPa)</div>
+        <!-- Mode 1: Interactive Plotly Chart Container -->
+        <div id="plotlyContainerWrapper" style="width: 100%; min-height: 440px; background: rgba(7,29,51,0.6); border-radius: 1.2rem; border: 1px solid var(--border-subtle); padding: 0.6rem; position: relative;">
+          <div id="plotlyIntensityChart" style="width: 100%; height: 440px;"></div>
+        </div>
+
+        <!-- Mode 2: Publication-Quality Matplotlib Figure Container -->
+        <div id="matplotlibContainerWrapper" style="display: none; width: 100%; text-align: center; background: rgba(7,29,51,0.6); border-radius: 1.2rem; border: 1px solid var(--border-subtle); padding: 1.2rem;">
+          <img id="matplotlibPlotImg" src="/api/intensity/plot?storm_key=REMAL_2024&format=png" alt="Python Matplotlib Dual-Axis Intensity Plot" style="max-width: 100%; height: auto; border-radius: 0.8rem; border: 1px solid var(--border-subtle); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+          <div style="margin-top: 0.8rem; font-size: 0.76rem; color: var(--mist);">
+            Rendered directly by server-side Python Matplotlib engine (3.11.2) with dual inverted baric axes and ±1σ empirical uncertainty cones.
+          </div>
+        </div>
+
+        <!-- Legend / Guidance Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding: 0.6rem 1rem; background: rgba(7,29,51,0.8); border-radius: 0.8rem; border: 1px solid var(--border-subtle); font-size: 0.74rem; color: var(--mist); flex-wrap: wrap; gap: 0.8rem;">
+          <div style="display: flex; gap: 1.2rem; flex-wrap: wrap;">
+            <div><span style="display:inline-block; width:10px; height:10px; background:#65BDD1; border-radius:50%; margin-right:6px;"></span><b>Solid Cyan:</b> Observed Wind Speed</div>
+            <div><span style="display:inline-block; width:10px; height:10px; background:#287CA8; border-radius:2px; margin-right:6px;"></span><b>Dashed Blue:</b> Predicted Wind (+6h to +24h)</div>
+            <div><span style="display:inline-block; width:10px; height:10px; background:#FF8566; border-radius:50%; margin-right:6px;"></span><b>Solid Coral:</b> Observed Central Pressure</div>
+            <div><span style="display:inline-block; width:10px; height:10px; background:#FFAA00; border-radius:2px; margin-right:6px;"></span><b>Dashed Amber:</b> Predicted Pressure (+6h to +24h)</div>
+          </div>
+          <div style="color: var(--accent-cyan); font-weight: 600;">
+            Interactive: Click & drag to zoom • Double-click to reset • Hover for exact values
+          </div>
         </div>
       </section>
 
-      <!-- Atmospheric Thermodynamic Diagnostics -->
-      <section class="workstation-card" aria-labelledby="thermoTitle">
-        <span class="utility-label utility-label--accent">SYNOPTIC FORCING ENVELOPE</span>
-        <h2 id="thermoTitle" style="font-family: var(--font-heading); font-size: var(--text-xl); color: var(--ice); margin: 0.3rem 0 1rem;">ENVIRONMENTAL FIELDS</h2>
+      <!-- Bottom Section: Synoptic Diagnostics & Rapid Intensification Assessment -->
+      <section class="workstation-card" aria-labelledby="thermoTitle" style="margin-top: 1rem; padding: 1.5rem;">
+        <span class="utility-label utility-label--accent">SYNOPTIC FORCING ENVELOPE & VALIDATION DIAGNOSTICS</span>
+        <h2 id="thermoTitle" style="font-family: var(--font-heading); font-size: var(--text-xl); color: var(--ice); margin: 0.3rem 0 1rem;">ENVIRONMENTAL THERMODYNAMICS</h2>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-          <div style="background: rgba(7,29,51,0.5); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
-            <span class="utility-label">PEAK WIND SPEED</span>
-            <div id="diagPeakWind" style="font-family: var(--font-heading); font-size: 1.6rem; color: var(--ice); margin: 0.2rem 0;">234 KM/H</div>
-            <span class="utility-label utility-label--muted">2-Minute Mean</span>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+          <div style="background: rgba(7,29,51,0.7); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
+            <span class="utility-label">PEAK OBSERVED WIND</span>
+            <div id="diagPeakWind" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice); margin: 0.2rem 0;">-- KM/H</div>
+            <span id="diagPeakWindKt" class="utility-label utility-label--muted">-- Knots (2-Min Mean)</span>
           </div>
 
-          <div style="background: rgba(7,29,51,0.5); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
-            <span class="utility-label">MINIMUM PRESSURE</span>
-            <div id="diagMinPres" style="font-family: var(--font-heading); font-size: 1.6rem; color: var(--accent-cyan); margin: 0.2rem 0;">910 hPa</div>
-            <span class="utility-label utility-label--muted">Deficit: -102 hPa</span>
+          <div style="background: rgba(7,29,51,0.7); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
+            <span class="utility-label">MINIMUM CENTRAL PRESSURE</span>
+            <div id="diagMinPres" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--accent-cyan); margin: 0.2rem 0;">-- hPa</div>
+            <span id="diagBaricDeficit" class="utility-label utility-label--muted">Deficit: -- hPa</span>
           </div>
 
-          <div style="background: rgba(7,29,51,0.5); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
+          <div style="background: rgba(7,29,51,0.7); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
             <span class="utility-label">SEA SURFACE TEMP (SST)</span>
-            <div style="font-family: var(--font-heading); font-size: 1.6rem; color: var(--ice); margin: 0.2rem 0;">29.8°C</div>
-            <span class="utility-label utility-label--muted">Ocean Heat Content: High</span>
+            <div id="diagSst" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice); margin: 0.2rem 0;">29.8°C</div>
+            <span class="utility-label utility-label--muted">Thermal Potential: Favorable</span>
           </div>
 
-          <div style="background: rgba(7,29,51,0.5); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
+          <div style="background: rgba(7,29,51,0.7); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
             <span class="utility-label">VERTICAL WIND SHEAR</span>
-            <div style="font-family: var(--font-heading); font-size: 1.6rem; color: var(--sky-blue); margin: 0.2rem 0;">8.2 KTS</div>
-            <span class="utility-label utility-label--muted">Favorable for Intensification</span>
+            <div id="diagShear" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--sky-blue); margin: 0.2rem 0;">8.2 KTS</div>
+            <span class="utility-label utility-label--muted">Low Shear (Permissive Intensification)</span>
           </div>
         </div>
 
-        <div style="margin-top: 1.5rem; background: rgba(7,29,51,0.7); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
-          <span class="utility-label utility-label--accent">RAPID INTENSIFICATION (RI) DIAGNOSIS</span>
-          <p id="riStatusText" style="font-size: 0.84rem; color: var(--mist); line-height: 1.5; margin-top: 0.3rem;">
-            Vortex met the operational Rapid Intensification threshold (≥ 55 km/h drop over 24 hours) during maritime transit across warm waters.
+        <div style="margin-top: 1.2rem; background: rgba(7,29,51,0.85); padding: 1.2rem; border-radius: 1.2rem; border: 1px solid var(--border-subtle);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="utility-label utility-label--accent">RAPID INTENSIFICATION (RI) DIAGNOSIS (WMO / NHC OPERATIONAL STANDARD)</span>
+            <span id="riBadge" class="provenance-tag live" style="font-size: 0.62rem;">CRITERIA MET</span>
+          </div>
+          <p id="riStatusText" style="font-size: 0.86rem; color: var(--ice); line-height: 1.5; margin-top: 0.4rem;">
+            Evaluating time series for operational Rapid Intensification threshold (≥ 55 km/h drop over 24 hours)...
           </p>
         </div>
       </section>
@@ -85,53 +148,259 @@
   <script src="shared_nav.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      function drawIntensityChart(storm) {
-        if (!storm || !storm.records || storm.records.length === 0) return;
+      const API_BASE = window.location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8000';
+      let currentStormKey = (window.CYCLONEX && window.CYCLONEX.selectedStormKey) || localStorage.getItem('cyclonex_active_storm') || 'REMAL_2024';
+      if (currentStormKey === 'LIVE_SURVEILLANCE') currentStormKey = 'REMAL_2024';
 
-        document.getElementById('diagPeakWind').textContent = `${storm.peakWindKmh} KM/H`;
-        document.getElementById('diagMinPres').textContent = `${storm.minPressureHpa} hPa`;
+      const btnViewPlotly = document.getElementById('btnViewPlotly');
+      const btnViewMatplotlib = document.getElementById('btnViewMatplotlib');
+      const plotlyWrapper = document.getElementById('plotlyContainerWrapper');
+      const mplWrapper = document.getElementById('matplotlibContainerWrapper');
+      const mplImg = document.getElementById('matplotlibPlotImg');
+      const btnDownloadMpl = document.getElementById('btnDownloadMpl');
 
-        const canvas = document.getElementById('intensityChartCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
-        canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
+      // View toggle handling
+      btnViewPlotly.addEventListener('click', () => {
+        btnViewPlotly.classList.add('active');
+        btnViewMatplotlib.classList.remove('active');
+        plotlyWrapper.style.display = 'block';
+        mplWrapper.style.display = 'none';
+        if (window.Plotly) Plotly.Plots.resize('plotlyIntensityChart');
+      });
 
-        const w = canvas.width;
-        const h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
+      btnViewMatplotlib.addEventListener('click', () => {
+        btnViewMatplotlib.classList.add('active');
+        btnViewPlotly.classList.remove('active');
+        plotlyWrapper.style.display = 'none';
+        mplWrapper.style.display = 'block';
+      });
 
-        const recs = storm.records;
-        const maxW = Math.max(...recs.map(r => r.wind_kmh), 100);
-        const minP = Math.min(...recs.map(r => r.pressure_hpa));
-        const maxP = Math.max(...recs.map(r => r.pressure_hpa));
-
-        // Draw Wind Line
-        ctx.beginPath();
-        recs.forEach((r, idx) => {
-          const x = (idx / (recs.length - 1)) * (w - 60) + 30;
-          const y = h - 40 - (r.wind_kmh / maxW) * (h - 80);
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.strokeStyle = '#65BDD1';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        // Draw Pressure Line
-        ctx.beginPath();
-        recs.forEach((r, idx) => {
-          const x = (idx / (recs.length - 1)) * (w - 60) + 30;
-          const y = 30 + ((r.pressure_hpa - minP) / (maxP - minP || 1)) * (h - 80);
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.strokeStyle = '#8FC4D8';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
+      async function loadIntensityData(stormKey) {
+        try {
+          const res = await fetch(`${API_BASE}/api/intensity/data?storm_key=${encodeURIComponent(stormKey)}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const payload = await res.json();
+          renderIntensityData(payload);
+        } catch (err) {
+          console.error('Failed to fetch intensity data from backend:', err);
+          // Fallback to local dataset if offline
+          if (window.CYCLONEX_DATASET && window.CYCLONEX_DATASET[stormKey]) {
+            renderFromLocalDataset(window.CYCLONEX_DATASET[stormKey]);
+          }
+        }
       }
 
-      window.addEventListener('cyclonex:stormChanged', (e) => drawIntensityChart(e.detail.storm));
-      if (window.CYCLONEX.selectedStormData) drawIntensityChart(window.CYCLONEX.selectedStormData);
+      function renderIntensityData(data) {
+        document.getElementById('activeIntensityStormTitle').textContent = `${data.storm_name.toUpperCase()} (${data.year}) • ${data.agency}`;
+        document.getElementById('diagPeakWind').textContent = `${data.peak_observed_wind_kmh} KM/H`;
+        document.getElementById('diagPeakWindKt').textContent = `${(data.peak_observed_wind_kmh / 1.852).toFixed(1)} Knots (2-Min Mean)`;
+        document.getElementById('diagMinPres').textContent = `${data.min_observed_pressure_hpa} hPa`;
+        document.getElementById('diagBaricDeficit').textContent = `Baric Deficit: -${(1013.25 - data.min_observed_pressure_hpa).toFixed(1)} hPa`;
+
+        // Update RI details
+        const ri = data.rapid_intensification;
+        const riBadge = document.getElementById('riBadge');
+        const riText = document.getElementById('riStatusText');
+        if (ri.detected) {
+          riBadge.textContent = 'RI THRESHOLD MET';
+          riBadge.className = 'provenance-tag live';
+          riText.textContent = ri.summary;
+        } else {
+          riBadge.textContent = 'STEADY INTENSIFICATION';
+          riBadge.className = 'provenance-tag archived';
+          riText.textContent = ri.summary;
+        }
+
+        // Update Matplotlib image source & download link
+        const plotUrl = `${API_BASE}/api/intensity/plot?storm_key=${encodeURIComponent(data.storm_key)}&format=png&t=${Date.now()}`;
+        mplImg.src = plotUrl;
+        btnDownloadMpl.href = plotUrl;
+        btnDownloadMpl.download = `CYCLONEX_INTENSITY_${data.storm_key}.png`;
+
+        // Render Plotly interactive chart
+        renderPlotlyChart(data);
+      }
+
+      function renderPlotlyChart(data) {
+        const obs = data.observed_time_series || [];
+        const fcst = data.forecast_time_series || [];
+        const initMeta = data.forecast_initialization || {};
+
+        const xObs = obs.map(r => r.time);
+        const yWindObs = obs.map(r => r.wind_kmh);
+        const yPresObs = obs.map(r => r.pressure_hpa);
+
+        // Connect forecast to initialization anchor
+        const initRec = obs[initMeta.record_index] || obs[obs.length - 1] || {};
+        const xFcst = [initRec.time].concat(fcst.map(f => f.time));
+        const yWindFcst = [initRec.wind_kmh].concat(fcst.map(f => f.wind_kmh));
+        const yPresFcst = [initRec.pressure_hpa].concat(fcst.map(f => f.pressure_hpa));
+
+        const windLower = [initRec.wind_kmh].concat(fcst.map(f => f.wind_ci68_lower_kmh));
+        const windUpper = [initRec.wind_kmh].concat(fcst.map(f => f.wind_ci68_upper_kmh));
+        const presLower = [initRec.pressure_hpa].concat(fcst.map(f => f.pressure_ci68_lower_hpa));
+        const presUpper = [initRec.pressure_hpa].concat(fcst.map(f => f.pressure_ci68_upper_hpa));
+
+        const traces = [
+          // 1. Observed Wind Speed
+          {
+            x: xObs,
+            y: yWindObs,
+            name: 'Observed Wind (km/h)',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: '#65BDD1', width: 3.2 },
+            marker: { size: 6.5, color: '#8FC4D8' },
+            hovertemplate: '<b>%{x}</b><br>Observed Wind: <b>%{y:.1f} km/h</b><extra>Ground Truth Observation</extra>'
+          },
+          // 2. Predicted Wind Speed
+          {
+            x: xFcst,
+            y: yWindFcst,
+            name: 'Predicted Wind (AM-ConvGRU)',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: '#8FC4D8', width: 2.8, dash: 'dash' },
+            marker: { size: 8, symbol: 'square', color: '#65BDD1' },
+            hovertemplate: '<b>%{x}</b><br>Model Predicted Wind: <b>%{y:.1f} km/h</b><extra>Model Forecast</extra>'
+          },
+          // 3. Wind Uncertainty Upper Bound (invisible line for fill)
+          {
+            x: xFcst,
+            y: windUpper,
+            showlegend: false,
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: 'transparent' },
+            hoverinfo: 'skip'
+          },
+          // 4. Wind Uncertainty Lower Bound (shaded area)
+          {
+            x: xFcst,
+            y: windLower,
+            name: 'Wind Uncertainty (±1σ CI)',
+            type: 'scatter',
+            mode: 'lines',
+            fill: 'tonexty',
+            fillcolor: 'rgba(101,189,209,0.22)',
+            line: { color: 'transparent' },
+            hovertemplate: 'Wind 68% CI: [%{y:.1f} km/h]<extra>Empirical Uncertainty</extra>'
+          },
+          // 5. Observed Central Pressure (Y-Axis 2)
+          {
+            x: xObs,
+            y: yPresObs,
+            name: 'Observed Pressure (hPa)',
+            yaxis: 'y2',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: '#FF8566', width: 3 },
+            marker: { size: 6.5, symbol: 'triangle-up', color: '#ff6b4a' },
+            hovertemplate: '<b>%{x}</b><br>Observed Pressure: <b>%{y:.1f} hPa</b><extra>Ground Truth Observation</extra>'
+          },
+          // 6. Predicted Central Pressure (Y-Axis 2)
+          {
+            x: xFcst,
+            y: yPresFcst,
+            name: 'Predicted Pressure (hPa)',
+            yaxis: 'y2',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: '#FFAA00', width: 2.6, dash: 'dot' },
+            marker: { size: 8, symbol: 'diamond', color: '#FFAA00' },
+            hovertemplate: '<b>%{x}</b><br>Model Predicted Pressure: <b>%{y:.1f} hPa</b><extra>Model Forecast</extra>'
+          },
+          // 7. Pressure Uncertainty Upper Bound
+          {
+            x: xFcst,
+            y: presUpper,
+            yaxis: 'y2',
+            showlegend: false,
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: 'transparent' },
+            hoverinfo: 'skip'
+          },
+          // 8. Pressure Uncertainty Lower Bound (shaded area)
+          {
+            x: xFcst,
+            y: presLower,
+            name: 'Pressure Uncertainty (±1σ CI)',
+            yaxis: 'y2',
+            type: 'scatter',
+            mode: 'lines',
+            fill: 'tonexty',
+            fillcolor: 'rgba(255,170,0,0.18)',
+            line: { color: 'transparent' },
+            hovertemplate: 'Pressure 68% CI: [%{y:.1f} hPa]<extra>Empirical Uncertainty</extra>'
+          }
+        ];
+
+        const layout = {
+          paper_bgcolor: 'transparent',
+          plot_bgcolor: 'rgba(7,29,51,0.5)',
+          margin: { l: 60, r: 60, t: 30, b: 50 },
+          font: { family: 'Inter, sans-serif', color: '#F1F8FA' },
+          hovermode: 'x unified',
+          xaxis: {
+            gridcolor: 'rgba(143,196,216,0.12)',
+            tickcolor: '#287CA8',
+            tickfont: { size: 10, color: '#8FC4D8' },
+            title: { text: 'Timeline (UTC) & Forecast Horizons', font: { size: 11, color: '#8FC4D8' } },
+            showgrid: true
+          },
+          yaxis: {
+            title: { text: 'Sustained Wind Speed (km/h)', font: { size: 11, color: '#65BDD1' } },
+            tickfont: { size: 10, color: '#65BDD1' },
+            gridcolor: 'rgba(143,196,216,0.12)',
+            rangemode: 'tozero'
+          },
+          yaxis2: {
+            title: { text: 'Central Minimum Pressure (hPa)', font: { size: 11, color: '#FF8566' } },
+            tickfont: { size: 10, color: '#FF8566' },
+            overlaying: 'y',
+            side: 'right',
+            autorange: 'reversed',  // Low pressure at top aligns with high wind
+            showgrid: false
+          },
+          legend: {
+            orientation: 'h',
+            x: 0,
+            y: 1.15,
+            font: { size: 10, color: '#F1F8FA' },
+            bgcolor: 'rgba(7,29,51,0.85)',
+            bordercolor: '#287CA8',
+            borderwidth: 1
+          }
+        };
+
+        const config = {
+          responsive: true,
+          displayModeBar: true,
+          modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+          displaylogo: false
+        };
+
+        Plotly.newPlot('plotlyIntensityChart', traces, layout, config);
+      }
+
+      function renderFromLocalDataset(storm) {
+        document.getElementById('activeIntensityStormTitle').textContent = `${storm.name.toUpperCase()} (${storm.year}) • ${storm.agency}`;
+        document.getElementById('diagPeakWind').textContent = `${storm.peakWindKmh} KM/H`;
+        document.getElementById('diagPeakWindKt').textContent = `${(storm.peakWindKmh / 1.852).toFixed(1)} Knots`;
+        document.getElementById('diagMinPres').textContent = `${storm.minPressureHpa} hPa`;
+        document.getElementById('diagBaricDeficit').textContent = `Deficit: -${(1013.25 - storm.minPressureHpa).toFixed(1)} hPa`;
+      }
+
+      // Initial load
+      loadIntensityData(currentStormKey);
+
+      // Reactive event listener when cyclone selection changes
+      window.addEventListener('cyclonex:stormChanged', (e) => {
+        const k = e.detail.key === 'LIVE_SURVEILLANCE' ? 'REMAL_2024' : e.detail.key;
+        currentStormKey = k;
+        loadIntensityData(k);
+      });
     });
   </script>
 </body>

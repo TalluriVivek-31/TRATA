@@ -49,6 +49,14 @@
                 <option value="WV_WaterVapor">NASA MODIS Aqua (Water Vapor 6.7µm)</option>
                 <option value="AIRS_Precipitation">NASA AIRS Sounder (Precipitation Footprint)</option>
               </optgroup>
+              <optgroup label="EUMETSAT (Meteosat-9 Indian Ocean Data Coverage 45.5°E)">
+                <option value="METEOSAT_IR108">Meteosat-9 IODC Clean IR (10.8µm Bay of Bengal)</option>
+                <option value="METEOSAT_IR108_AS">Meteosat-9 IODC Clean IR (10.8µm Arabian Sea)</option>
+                <option value="METEOSAT_IR108_IO">Meteosat-9 IODC Clean IR (10.8µm Synoptic Indian Ocean)</option>
+                <option value="METEOSAT_WV062">Meteosat-9 IODC Water Vapor (6.2µm Moisture Outflow)</option>
+                <option value="METEOSAT_VIS006">Meteosat-9 IODC Visible (0.6µm High-Res Daytime)</option>
+                <option value="METEOSAT_AIRMASS">Meteosat-9 IODC RGB Airmass Composite</option>
+              </optgroup>
               <optgroup label="JMA / NOAA OSPO (Calibrated Infrared Geostationary)">
                 <option value="HIMAWARI_FULL">NOAA Himawari-9 (Full Disk IR Band 4)</option>
                 <option value="HIMAWARI_BOB">NOAA Himawari-9 (Bay of Bengal Crop)</option>
@@ -562,6 +570,21 @@
             if (minLbl) minLbl.textContent = '0.0 mm/h (Quiescent)';
             if (maxLbl) maxLbl.textContent = '45+ mm/h (Torrential Eyewall)';
             if (colBar) colBar.style.background = 'linear-gradient(to right, #071d33, #287ca8, #65bdd1, #ffff00, #ff8566, #b30000)';
+          } else if (channel.startsWith('METEOSAT')) {
+            if (specTitle) specTitle.textContent = `🛰️ ${satData.channel.name.toUpperCase()}`;
+            if (channel.includes('WV')) {
+              if (minLbl) minLbl.textContent = 'Upper Troposphere Dry (0% RH)';
+              if (maxLbl) maxLbl.textContent = 'Upper Troposphere Moist (100% RH)';
+              if (colBar) colBar.style.background = 'linear-gradient(to right, #000000, #4b0082, #0000ff, #00ff00, #ffff00, #ffffff)';
+            } else if (channel.includes('VIS')) {
+              if (minLbl) minLbl.textContent = 'Albedo 0% (Dark Ocean)';
+              if (maxLbl) maxLbl.textContent = 'Albedo 100% (High Reflectance)';
+              if (colBar) colBar.style.background = 'linear-gradient(to right, #000000, #333333, #666666, #999999, #cccccc, #ffffff)';
+            } else {
+              if (minLbl) minLbl.textContent = '-78°C (Deep Convective Core)';
+              if (maxLbl) maxLbl.textContent = '+32°C (Warm Indian Ocean)';
+              if (colBar) colBar.style.background = 'linear-gradient(to right, #ffffff, #800080, #0000ff, #00ff00, #ffff00, #ff0000, #111111)';
+            }
           } else if (channel.startsWith('HIMAWARI')) {
             if (specTitle) specTitle.textContent = '🛰️ JMA HIMAWARI-9 (10-MIN IR4 10.4µm GEOSTATIONARY)';
             if (minLbl) minLbl.textContent = '-75°C (Convective Eye Wall)';
@@ -583,7 +606,7 @@
             staticSatelliteImg.src = imgUrl.startsWith('http') ? imgUrl : `${API_BASE}${imgUrl}?t=${Date.now()}`;
           }
           if (staticOverlay) {
-            staticOverlay.style.display = channel.startsWith('HIMAWARI') ? 'flex' : 'none';
+            staticOverlay.style.display = (channel.startsWith('HIMAWARI') || channel.startsWith('METEOSAT')) ? 'flex' : 'none';
           }
 
           // Handle map layer based on view mode (NEVER overlaps map in split or map mode!)
@@ -612,12 +635,21 @@
 
           const freshBadge = document.getElementById('satFreshnessBadge');
           if (freshBadge) {
-            if (satData.freshness_status === 'GENUINE_NEAR_REAL_TIME') {
+            if (satData.freshness_status === 'GENUINE_NEAR_REAL_TIME' || satData.freshness_status === 'LIVE') {
               freshBadge.className = 'provenance-tag live';
-              freshBadge.textContent = 'NEAR-REAL-TIME PASS';
-            } else {
+              freshBadge.textContent = '● LIVE NEAR-REAL-TIME';
+            } else if (satData.freshness_status === 'VERIFIED_HISTORICAL_ARCHIVE' || satData.freshness_status === 'HISTORICAL') {
+              freshBadge.className = 'provenance-tag live';
+              freshBadge.textContent = '● HISTORICAL ARCHIVE';
+            } else if (satData.freshness_status === 'DEMO') {
               freshBadge.className = 'provenance-tag archive';
-              freshBadge.textContent = 'VERIFIED ARCHIVE PASS';
+              freshBadge.textContent = '● DEMO SIMULATION';
+            } else if (satData.freshness_status === 'UNAVAILABLE') {
+              freshBadge.className = 'provenance-tag archive';
+              freshBadge.textContent = '● UNAVAILABLE';
+            } else {
+              freshBadge.className = 'provenance-tag live';
+              freshBadge.textContent = '● VERIFIED ARCHIVE PASS';
             }
           }
 
@@ -991,6 +1023,14 @@
       setTimeout(() => { map.invalidateSize(); }, 250);
       setTimeout(() => { map.invalidateSize(); }, 700);
       window.addEventListener('resize', () => { map.invalidateSize(); });
+
+      // Check URL search params or localStorage for pending satellite channel from Explorer
+      const urlParams = new URLSearchParams(window.location.search);
+      const pendingChannel = urlParams.get('channel') || localStorage.getItem('cyclonex_pending_sat_channel');
+      if (pendingChannel && channelSelect) {
+        channelSelect.value = pendingChannel;
+        localStorage.removeItem('cyclonex_pending_sat_channel');
+      }
 
       // Initial Load based on stored key or default to AMPHAN_2020
       const initKey = localStorage.getItem('cyclonex_active_storm') || 'AMPHAN_2020';

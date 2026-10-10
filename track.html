@@ -22,18 +22,18 @@
       background: rgba(11,45,77,0.7);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-pill);
-      padding: 0.35rem 0.85rem;
-      font-size: 0.72rem;
+      padding: 0.45rem 1.1rem;
+      font-size: 0.82rem;
       color: var(--mist);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.5rem;
       transition: all 0.2s ease;
       user-select: none;
     }
     .imd-layer-toggle-chip.active {
-      background: rgba(40,124,168,0.35);
+      background: rgba(40,124,168,0.45);
       border-color: var(--accent-cyan);
       color: var(--ice);
       font-weight: 600;
@@ -41,12 +41,14 @@
     .imd-layer-toggle-chip input[type="checkbox"] {
       cursor: pointer;
       accent-color: var(--accent-cyan);
+      width: 16px;
+      height: 16px;
     }
-    .wind-legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      display: inline-block;
+    .metric-pill-box {
+      background: rgba(7,29,51,0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: 0.8rem;
+      padding: 0.8rem 1rem;
     }
   </style>
 </head>
@@ -56,10 +58,10 @@
 
   <main class="page-container">
     <header class="page-header-banner" style="padding: 1.2rem 2rem 0.6rem; margin-bottom: 0.8rem;">
-      <span class="utility-label utility-label--accent">PAGE 04 // SPATIOTEMPORAL TRAJECTORY, IMD BEST-TRACK & WARNING CONES</span>
+      <span class="utility-label utility-label--accent">PAGE 04 // SPATIOTEMPORAL TRAJECTORY FORECAST & HISTORICAL TRACK VERIFICATION</span>
       <h1 class="page-title">TRACK &<br>FORECAST</h1>
       <p class="page-desc">
-        Integrated GIS workstation displaying official India Meteorological Department (IMD) observed tracks, RSMC New Delhi forecast paths, gale wind warnings (27kt, 34kt, 50kt, 64kt), official Cone of Uncertainty, alongside CYCLONEX AM-ConvGRU spatiotemporal predictions.
+        Authoritative GIS workstation displaying exactly ONE predicted cyclone trajectory from the CYCLONEX kinematic & beta-drift spatio-temporal engine, alongside direct comparison against verified historical best-track observations.
       </p>
     </header>
 
@@ -69,126 +71,191 @@
       <section class="workstation-card" style="padding: 1.5rem; display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; padding: 0.5rem 1rem; flex-wrap: wrap; gap: 0.8rem;">
           <div>
-            <span class="utility-label">GEOGRAPHIC TRAJECTORY & MULTI-SOURCE RECONCILIATION WORKSTATION</span>
+            <span class="utility-label">GEOGRAPHIC TRAJECTORY WORKSTATION</span>
             <div style="display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap;">
               <span id="activeStormTitle" style="font-family: var(--font-heading); font-size: 1.8rem; color: var(--ice);">ACTIVE STORM</span>
-              <span id="fusionFreshnessBadge" class="provenance-tag live" style="font-size: 0.62rem;">AUTHORITATIVE SINGLE-TRACK (FUSED)</span>
+              <span id="trackStatusBadge" class="provenance-tag live" style="font-size: 0.62rem;">ONE PREDICTED PATH ACTIVE</span>
             </div>
           </div>
-          <!-- Real-Time Open-Meteo Weather Query at Clicked Location -->
-          <div style="display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;">
+
+          <!-- Top Action Bar: Click-to-probe & EXACTLY ONE Track Toggle: "Show Actual Track" -->
+          <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
             <div id="weatherAtPointBox" style="background: rgba(7,29,51,0.85); padding: 0.45rem 1.2rem; border-radius: var(--radius-pill); border: 1px solid var(--border-subtle); font-size: 0.76rem; color: var(--mist);">
               Click map to probe atmospheric conditions via Open-Meteo
             </div>
-            <button id="toggleForecastConeBtn" class="live-api-sync-btn">TOGGLE 24H CONE</button>
-            <button id="btnRefreshTrackData" class="live-api-sync-btn" title="Reconcile and sync multi-source observations">SYNC / RECONCILE DATA</button>
-          </div>
-        </div>
-
-        <!-- Authoritative Single-Track Interactive Layer Manager Bar -->
-        <div style="background: rgba(7,29,51,0.92); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.6rem 1rem; margin-bottom: 0.8rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;">
-          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <span class="utility-label" style="color: var(--accent-cyan); font-size: 0.68rem; margin-right: 0.2rem;">WORKSTATION LAYERS:</span>
             
-            <label class="imd-layer-toggle-chip active" id="chipCanonicalObserved" title="Single continuous observed track fused from all verified data sources">
-              <input type="checkbox" id="chkCanonicalObserved" checked>
-              <span>🔴 Canonical Observed Track</span>
-            </label>
-
-            <label class="imd-layer-toggle-chip active" id="chipAiForecast" title="Primary CYCLONEX AI forecast trajectory initialized at latest valid observation">
-              <input type="checkbox" id="chkAiForecast" checked>
-              <span>🟣 CYCLONEX AI Prediction</span>
-            </label>
-
-            <label class="imd-layer-toggle-chip active" id="chipAiUncertainty" title="Separate statistical error cone surrounding AI prediction">
-              <input type="checkbox" id="chkAiUncertainty" checked>
-              <span>🔷 AI 24h Uncertainty Cone</span>
-            </label>
-
-            <label class="imd-layer-toggle-chip" id="chipOfficialForecast" title="Official RSMC forecast bulletin for external reference (independent comparison layer)">
-              <input type="checkbox" id="chkOfficialForecast">
-              <span>🟠 Official RSMC Forecast (External Ref)</span>
-            </label>
-
-            <label class="imd-layer-toggle-chip active" id="chipImdWind" title="Official IMD marine gale warning boundaries">
-              <input type="checkbox" id="chkImdWind" checked>
-              <span>🌪️ IMD Wind Warnings</span>
-            </label>
-          </div>
-
-          <!-- Wind Threshold Independent Toggles -->
-          <div id="windThresholdToggles" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.68rem;">
-            <span class="utility-label utility-label--muted" style="font-size: 0.62rem;">ZONES:</span>
-            <label class="imd-layer-toggle-chip active" style="padding: 0.2rem 0.5rem;" title="Depression Gale (50 km/h)">
-              <input type="checkbox" id="chkWind27" checked>
-              <span class="wind-legend-dot" style="background: #65BDD1;"></span> 27kt
-            </label>
-            <label class="imd-layer-toggle-chip active" style="padding: 0.2rem 0.5rem;" title="Cyclonic Storm Gale (63 km/h)">
-              <input type="checkbox" id="chkWind34" checked>
-              <span class="wind-legend-dot" style="background: #ffdd57;"></span> 34kt
-            </label>
-            <label class="imd-layer-toggle-chip active" style="padding: 0.2rem 0.5rem;" title="Severe Cyclonic Storm Gale (92 km/h)">
-              <input type="checkbox" id="chkWind50" checked>
-              <span class="wind-legend-dot" style="background: #ff8566;"></span> 50kt
-            </label>
-            <label class="imd-layer-toggle-chip active" style="padding: 0.2rem 0.5rem;" title="Hurricane Force Core (118 km/h)">
-              <input type="checkbox" id="chkWind64" checked>
-              <span class="wind-legend-dot" style="background: #b30000;"></span> 64kt
+            <!-- THE ONLY TRACK TOGGLE: "Show Actual Track" -->
+            <label class="imd-layer-toggle-chip" id="chipActualTrack" title="Toggle overlay of verified historical best-track observations for direct comparison">
+              <input type="checkbox" id="chkShowActualTrack">
+              <span>Show Actual Track</span>
             </label>
           </div>
         </div>
 
-        <div class="map-wrapper-fixed" style="height: 580px;">
+        <!-- GIS Map Viewport -->
+        <div class="map-wrapper-fixed" style="height: 560px;">
           <div id="mainTrackMap"></div>
+
+          <!-- Map Legend Indicator Floating Overlay -->
+          <div style="position: absolute; top: 1rem; left: 1rem; z-index: 500; background: rgba(7,29,51,0.88); backdrop-filter: blur(8px); padding: 0.5rem 0.9rem; border-radius: 0.6rem; border: 1px solid var(--border-subtle); font-size: 0.72rem; color: var(--ice); display: flex; flex-direction: column; gap: 0.35rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="display:inline-block; width:18px; height:3px; background:#65BDD1; border-top: 2px dashed #65BDD1;"></span>
+              <b>ONE Predicted Trajectory:</b> AM-ConvGRU / Beta-Drift (+6h to +24h)
+            </div>
+            <div id="actualLegendRow" style="display: none; align-items: center; gap: 0.5rem;">
+              <span style="display:inline-block; width:18px; height:3.5px; background:#ff4d4d;"></span>
+              <b style="color: #ff8566;">Actual Historical Track:</b> Verified Observations
+            </div>
+          </div>
 
           <!-- Timeline Scrubber -->
           <div class="track-scrubber" style="bottom: 1.5rem;">
             <span class="utility-label utility-label--muted">WAYPOINT:</span>
-            <input type="range" id="pageScrubber" min="0" max="10" value="0" aria-label="Waypoint Timeline Scrubber">
-            <span id="pageScrubberTime" class="track-scrubber-time">Initial Waypoint</span>
+            <input type="range" id="pageScrubber" min="0" max="4" value="0" aria-label="Waypoint Timeline Scrubber">
+            <span id="pageScrubberTime" class="track-scrubber-time">Forecast Initialization (t0)</span>
           </div>
         </div>
 
-        <!-- Waypoints & Bulletins Grid -->
+        <!-- Interactive Location-Based Cyclone Impact & Damage Assessment Panel -->
+        <div id="cycloneImpactCard" style="margin-top: 1rem; background: rgba(7,29,51,0.88); border: 1px solid var(--border-subtle); border-radius: 1rem; padding: 1.2rem; display: flex; flex-direction: column; gap: 0.8rem; transition: border-color 0.3s ease;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(143,196,216,0.15); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.6rem;">
+            <div>
+              <span class="utility-label utility-label--accent">IMPACT & VULNERABILITY MODEL (HOVER/CLICK ANY WAYPOINT OR PROBE MAP)</span>
+              <h3 id="impactLocationTitle" style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--ice); margin: 0.1rem 0;">
+                FORECAST HORIZON IMPACT ASSESSMENT
+              </h3>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+              <span id="impactArrivalBadge" class="provenance-tag live" style="font-size: 0.62rem; background: rgba(40,124,168,0.4);">+6h Horizon</span>
+              <span id="impactRiskBadge" class="provenance-tag" style="font-size: 0.62rem; background: #ff4d4d; color: #fff;">HIGH HAZARD (TIER 3)</span>
+            </div>
+          </div>
+
+          <!-- Impact Metrics Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem;">
+            <div class="metric-pill-box">
+              <span class="utility-label">ARRIVAL TIME & COORDS</span>
+              <div id="impactTimeCoords" style="font-family: var(--font-heading); font-size: 1.05rem; color: var(--ice); margin: 0.2rem 0;">--</div>
+              <span id="impactDistSub" class="utility-label utility-label--muted">Waypoint Centerline</span>
+            </div>
+
+            <div class="metric-pill-box">
+              <span class="utility-label">MAX SUSTAINED WIND</span>
+              <div id="impactWind" style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--accent-cyan); margin: 0.2rem 0;">-- km/h</div>
+              <span id="impactGaleRadii" class="utility-label utility-label--muted">Gale 34kt: -- km • Hurr 64kt: -- km</span>
+            </div>
+
+            <div class="metric-pill-box">
+              <span class="utility-label">STORM SURGE DELUGE</span>
+              <div id="impactSurge" style="font-family: var(--font-heading); font-size: 1.25rem; color: #ff8566; margin: 0.2rem 0;">-- m</div>
+              <span id="impactSurgeSub" class="utility-label utility-label--muted">Shallow-Shelf Hydrodynamic Peak</span>
+            </div>
+
+            <div class="metric-pill-box">
+              <span class="utility-label">RAINFALL ACCUMULATION</span>
+              <div id="impactRain" style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--sky-blue); margin: 0.2rem 0;">-- mm/24h</div>
+              <span id="impactRainSub" class="utility-label utility-label--muted">Extreme Inundation Risk</span>
+            </div>
+
+            <div class="metric-pill-box">
+              <span class="utility-label">EXPOSED POPULATION</span>
+              <div id="impactPopulation" style="font-family: var(--font-heading); font-size: 1.25rem; color: #f5b041; margin: 0.2rem 0;">--</div>
+              <span id="impactSettlementCount" class="utility-label utility-label--muted">In 34kt Gale Footprint</span>
+            </div>
+          </div>
+
+          <!-- Hazard Narrative & Infrastructure at Risk -->
+          <div style="background: rgba(14,42,71,0.5); border: 1px solid rgba(143,196,216,0.12); border-radius: 0.7rem; padding: 0.8rem; font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.4rem;">
+            <div>
+              <b style="color: var(--ice);">Hazard Assessment: </b>
+              <span id="impactSummaryText" style="color: var(--mist);">Select or hover any trajectory waypoint to inspect physical hazard and exposure modeling.</span>
+            </div>
+            <div>
+              <b style="color: #65BDD1;">Critical Infrastructure at Risk: </b>
+              <span id="impactInfraText" style="color: var(--mist);">Ports, power grids, refineries, cyclone shelters in affected radius.</span>
+            </div>
+            <div>
+              <b style="color: #a3e4d7;">Agricultural Vulnerability: </b>
+              <span id="impactAgriText" style="color: var(--mist);">Crop profile, aquaculture, paddy inundation threat.</span>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--mist); opacity: 0.85; border-top: 1px solid rgba(143,196,216,0.1); padding-top: 0.3rem;">
+              <span><b>Data Provenance:</b> India Meteorological Department (IMD RSMC New Delhi) • WMO Tech Report No. 1194 • Census of India</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Validation Metrics & Error Analysis Card (Zero Data Leakage) -->
+        <div style="margin-top: 1rem; background: rgba(7,29,51,0.85); border: 1px solid var(--border-subtle); border-radius: 1rem; padding: 1.2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; border-bottom: 1px solid rgba(143,196,216,0.15); padding-bottom: 0.5rem; flex-wrap: wrap; gap: 0.6rem;">
+            <div>
+              <span class="utility-label utility-label--accent">MODEL VALIDATION & DISPLACEMENT COMPARISON</span>
+              <h3 style="font-family: var(--font-heading); font-size: 1.2rem; color: var(--ice); margin: 0.1rem 0;">CHRONOLOGICAL TRAIN/TEST SPLIT VERIFICATION</h3>
+            </div>
+            <span class="provenance-tag live" style="font-size: 0.6rem;">ZERO FUTURE DATA LEAKAGE</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem;">
+            <div class="metric-pill-box">
+              <span class="utility-label">FORECAST INITIALIZATION (t0)</span>
+              <div id="valInitTime" style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--ice); margin: 0.2rem 0;">--</div>
+              <span class="utility-label utility-label--muted">Prior History Partitioned</span>
+            </div>
+
+            <div class="metric-pill-box">
+              <span class="utility-label">MEAN TRACK ERROR (MTE)</span>
+              <div id="valMeanError" style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--accent-cyan); margin: 0.2rem 0;">-- km</div>
+              <span class="utility-label utility-label--muted">Across Matching Horizons</span>
+            </div>
+
+            <div class="metric-pill-box">
+              <span class="utility-label">+6H DISPLACEMENT</span>
+              <div id="valLead6h" style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--ice); margin: 0.2rem 0;">-- km</div>
+              <span class="utility-label utility-label--muted">±27.7 km Uncertainty</span>
+            </div>
+
+            <div class="metric-pill-box">
+              <span class="utility-label">+12H DISPLACEMENT</span>
+              <div id="valLead12h" style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--ice); margin: 0.2rem 0;">-- km</div>
+              <span class="utility-label utility-label--muted">±53.5 km Uncertainty</span>
+            </div>
+
+            <div class="metric-pill-box">
+              <span class="utility-label">+24H DISPLACEMENT</span>
+              <div id="valLead24h" style="font-family: var(--font-heading); font-size: 1.25rem; color: var(--sky-blue); margin: 0.2rem 0;">-- km</div>
+              <span class="utility-label utility-label--muted">CLIPER Baseline: 194.5 km</span>
+            </div>
+          </div>
+
+          <p id="valExplanationText" style="font-size: 0.76rem; color: var(--mist); margin-top: 0.8rem; line-height: 1.4;">
+            Predicted trajectory is generated strictly from observations preceding forecast initialization time. Historical track overlay displays ground-truth positions verified by authoritative meteorological re-analysis.
+          </p>
+        </div>
+
+        <!-- Waypoints & Telemetry Drawer -->
         <div style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.78rem;">
           
-          <!-- Canonical Observed Positions Timeline List -->
+          <!-- One Authoritative Predicted Horizons List -->
           <div style="background: rgba(7,29,51,0.7); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.8rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(143,196,216,0.1); padding-bottom: 0.3rem;">
-              <span class="utility-label" style="color: #65BDD1;">🔴 CANONICAL OBSERVED WAYPOINTS</span>
-              <span id="obsCountBadge" style="color: var(--ice); font-weight: 600;">-- verified points</span>
+              <span class="utility-label" style="color: var(--accent-cyan);">🔵 ONE AUTHORITATIVE PREDICTED TRAJECTORY</span>
+              <span id="imdFcstCountBadge" style="color: var(--ice); font-weight: 600;">4 forecast horizons</span>
             </div>
-            <div id="obsListContainer" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem;">
-              <span style="color: var(--mist);">Reconciling multi-source observations...</span>
+            <div id="predictedListContainer" style="max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem;">
+              <span style="color: var(--mist);">Generating authoritative predicted trajectory...</span>
             </div>
           </div>
 
-          <!-- CYCLONEX AI Forecast Horizons Timeline List -->
+          <!-- Verified Observed Positions Timeline List -->
           <div style="background: rgba(7,29,51,0.7); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.8rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(143,196,216,0.1); padding-bottom: 0.3rem;">
-              <span class="utility-label" style="color: #c084fc;">🟣 CYCLONEX AI PREDICTION (+6H TO +24H)</span>
-              <span id="fcstCountBadge" style="color: var(--ice); font-weight: 600;">-- horizons</span>
+              <span class="utility-label" style="color: #ff6b4a;">🔴 VERIFIED HISTORICAL OBSERVATIONS</span>
+              <span id="imdObsCountBadge" style="color: var(--ice); font-weight: 600;">8 verified observations</span>
             </div>
-            <div id="fcstListContainer" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem;">
-              <span style="color: var(--mist);">Computing kinematic beta-drift trajectory...</span>
+            <div id="actualObsListContainer" style="max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem;">
+              <span style="color: var(--mist);">Loading verified historical best-track records...</span>
             </div>
           </div>
 
-        </div>
-
-        <!-- Multi-Source Reconciliation & Data Fusion Audit Panel -->
-        <div style="margin-top: 1rem; background: rgba(7,29,51,0.85); border: 1px solid var(--border-subtle); border-radius: 0.8rem; padding: 0.9rem 1.2rem; font-size: 0.76rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(143,196,216,0.12); padding-bottom: 0.4rem; flex-wrap: wrap; gap: 0.5rem;">
-            <span class="utility-label" style="color: var(--accent-cyan);">AUTHORITATIVE DATA-FUSION & RECONCILIATION AUDIT</span>
-            <div style="display: flex; gap: 0.8rem; font-size: 0.72rem;">
-              <span id="auditDedupeTag" style="color: var(--ice);">Deduplicated: <b style="color: var(--accent-cyan);">--</b></span>
-              <span id="auditConflictsTag" style="color: var(--ice);">Conflicts Resolved: <b style="color: #ffaa00;">--</b></span>
-              <span id="auditContinuityTag" style="color: var(--ice);">Continuity: <b style="color: #4ade80;">--</b></span>
-            </div>
-          </div>
-          <div id="reconciliationAuditDetails" style="color: var(--mist); line-height: 1.5; font-size: 0.74rem;">
-            Loading reconciliation audit metrics...
-          </div>
         </div>
 
       </section>
@@ -201,8 +268,10 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const API_BASE = window.location.protocol.startsWith('http') ? '' : 'http://127.0.0.1:8000';
+      let currentStormKey = (window.CYCLONEX && window.CYCLONEX.selectedStormKey) || localStorage.getItem('cyclonex_active_storm') || 'REMAL_2024';
+      if (currentStormKey === 'LIVE_SURVEILLANCE') currentStormKey = 'REMAL_2024';
 
-      // 1. Initialize Map with multiple basemap tile providers
+      // 1. Initialize Map
       const map = L.map('mainTrackMap', {
         center: [20.0, 88.0],
         zoom: 5,
@@ -210,679 +279,367 @@
         attributionControl: true
       });
 
-      // Layer 1: Geoapify Dark Matter (Using configured API key — Clean dark ocean, no watermarks)
+      // Dark Matter Basemap
       const geoapifyDark = L.tileLayer('https://maps.geoapify.com/v1/tile/dark-matter/{z}/{x}/{y}.png?apiKey=cb1_4du2_1_91bd7dbbc92f0b93255783be', {
         maxZoom: 19,
         attribution: '&copy; Geoapify, &copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      // Layer 2: Esri Dark Canvas (Free high-contrast dark ocean basemap)
-      const esriDark = L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 16,
-        attribution: '&copy; Esri, DeLorme, NAVTEQ'
+      // Dedicated Map Layers: Exactly ONE Predicted Path and ONE Optional Actual Track
+      const predictedLayer = L.layerGroup().addTo(map);
+      const actualTrackLayer = L.layerGroup(); // Not added by default
+
+      let currentTrackPayload = null;
+      let showActualTrack = false;
+
+      const chkActual = document.getElementById('chkShowActualTrack');
+      const chipActual = document.getElementById('chipActualTrack');
+      const actualLegendRow = document.getElementById('actualLegendRow');
+      const trackStatusBadge = document.getElementById('trackStatusBadge');
+
+      // EXACTLY ONE TOGGLE HANDLER: "Show Actual Track"
+      chkActual.addEventListener('change', () => {
+        showActualTrack = chkActual.checked;
+        if (showActualTrack) {
+          map.addLayer(actualTrackLayer);
+          chipActual.classList.add('active');
+          actualLegendRow.style.display = 'flex';
+          trackStatusBadge.textContent = 'ACTUAL TRACK OVERLAY VISIBLE';
+          trackStatusBadge.className = 'provenance-tag live';
+        } else {
+          map.removeLayer(actualTrackLayer);
+          chipActual.classList.remove('active');
+          actualLegendRow.style.display = 'none';
+          trackStatusBadge.textContent = 'ONE PREDICTED PATH ACTIVE';
+          trackStatusBadge.className = 'provenance-tag live';
+        }
       });
 
-      // Layer 3: Esri World Ocean (Bathymetric Ocean Depths)
-      const esriOcean = L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 13,
-        attribution: '&copy; Esri, GEBCO, NOAA'
-      });
+      // Helper to update the Impact & Damage Panel
+      function updateImpactPanel(wp, stormName) {
+        if (!wp) return;
+        const imp = wp.impact_assessment;
+        const titleEl = document.getElementById('impactLocationTitle');
+        const arrBadge = document.getElementById('impactArrivalBadge');
+        const riskBadge = document.getElementById('impactRiskBadge');
+        const timeCoords = document.getElementById('impactTimeCoords');
+        const distSub = document.getElementById('impactDistSub');
+        const windEl = document.getElementById('impactWind');
+        const galeRadiiEl = document.getElementById('impactGaleRadii');
+        const surgeEl = document.getElementById('impactSurge');
+        const surgeSub = document.getElementById('impactSurgeSub');
+        const rainEl = document.getElementById('impactRain');
+        const rainSub = document.getElementById('impactRainSub');
+        const popEl = document.getElementById('impactPopulation');
+        const setCntEl = document.getElementById('impactSettlementCount');
+        const sumEl = document.getElementById('impactSummaryText');
+        const infEl = document.getElementById('impactInfraText');
+        const agrEl = document.getElementById('impactAgriText');
 
-      // Layer 4: Esri Satellite Imagery (True Earth Satellite)
-      const esriSatellite = L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 18,
-        attribution: '&copy; Esri, Maxar, Earthstar Geographics'
-      });
+        titleEl.textContent = `${(stormName || 'CYCLONE').toUpperCase()} • ${wp.label || wp.time}`;
+        arrBadge.textContent = wp.time || `+${wp.lead_hours}h`;
 
-      // Layer 5: OpenStreetMap Standard
-      const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
-      });
+        if (imp && imp.hazard_assessment) {
+          const haz = imp.hazard_assessment;
+          const exp = imp.exposure_and_vulnerability;
 
-      // Layer 6: NASA GIBS MODIS Satellite
-      const nasaGibs = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg', {
-        maxZoom: 9,
-        attribution: '&copy; NASA EOSDIS GIBS'
-      });
+          riskBadge.textContent = haz.overall_risk_level;
+          riskBadge.style.background = haz.risk_badge_color || '#ff4d4d';
 
-      // Base layers control
-      const baseMaps = {
-        "Geoapify Dark Ocean": geoapifyDark,
-        "Esri Dark Canvas": esriDark,
-        "Esri World Ocean": esriOcean,
-        "Esri Satellite Imagery": esriSatellite,
-        "OpenStreetMap Standard": osmStandard,
-        "NASA GIBS Satellite": nasaGibs
-      };
+          timeCoords.textContent = `${wp.latitude.toFixed(2)}°N, ${wp.longitude.toFixed(2)}°E`;
+          distSub.textContent = `Forecast Horizon: +${wp.lead_hours}h (${wp.time})`;
 
-      // Workstation Overlays
-      const trackLayer = L.layerGroup().addTo(map);
-      const forecastLayer = L.layerGroup().addTo(map);
+          windEl.textContent = `${wp.wind_kmh} km/h (${Math.round(wp.wind_kmh / 1.852)} kt)`;
+          if (haz.gale_radii_km) {
+            galeRadiiEl.textContent = `34kt Gale: ${haz.gale_radii_km.gale_34kt_km} km • 64kt Hurr: ${haz.gale_radii_km.hurricane_force_64kt_km} km`;
+          }
 
-      // IMD Dedicated Overlays
-      const imdObsLayer = L.layerGroup().addTo(map);
-      const imdFcstLayer = L.layerGroup().addTo(map);
-      const imdCouLayer = L.layerGroup().addTo(map);
-      const imdWindLayer = L.layerGroup().addTo(map);
+          if (haz.storm_surge) {
+            surgeEl.textContent = `${haz.storm_surge.mean_surge_height_m} m (${haz.storm_surge.peak_surge_range_m})`;
+            surgeSub.textContent = `Risk: ${haz.storm_surge.surge_threat_tier}`;
+          }
 
-      const overlayMaps = {
-        "Cyclone Best-Track (Historical)": trackLayer,
-        "AM-ConvGRU 24h Cone": forecastLayer,
-        "🔴 IMD Observed Best-Track": imdObsLayer,
-        "🟠 IMD RSMC Forecast Track": imdFcstLayer,
-        "🔷 IMD Cone of Uncertainty (COU)": imdCouLayer,
-        "🌪️ IMD Wind Warning Zones": imdWindLayer
-      };
+          if (haz.rainfall_forecast) {
+            rainEl.textContent = `${haz.rainfall_forecast.rainfall_24h_mm} mm`;
+            rainSub.textContent = `Threat: ${haz.rainfall_forecast.deluge_category}`;
+          }
 
-      L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+          if (exp) {
+            popEl.textContent = exp.total_population_exposed.toLocaleString();
+            setCntEl.textContent = `${exp.nearby_settlements_count} Coastal Centers Exposed`;
+            infEl.textContent = exp.critical_infrastructure_at_risk.length > 0 ? exp.critical_infrastructure_at_risk.join(', ') : 'No critical marine hubs in direct gale envelope';
+            agrEl.textContent = exp.agricultural_sectors_at_risk.length > 0 ? exp.agricultural_sectors_at_risk.join(', ') : 'Minor rural crop exposure';
+          }
 
-      // =======================================================================
-      // AUTHORITATIVE SINGLE-TRACK WORKSTATION GIS OVERLAYS
-      // Exactly ONE observed trajectory & ONE CYCLONEX AI forecast trajectory
-      // =======================================================================
-      const canonicalObservedLayer = L.layerGroup().addTo(map);
-      const aiForecastLayer = L.layerGroup().addTo(map);
-      const aiUncertaintyLayer = L.layerGroup().addTo(map);
-      const officialForecastLayer = L.layerGroup(); // Independent external reference layer
-      const imdWindLayer = L.layerGroup().addTo(map);
+          sumEl.textContent = haz.risk_summary;
+        } else {
+          timeCoords.textContent = `${wp.latitude.toFixed(2)}°N, ${wp.longitude.toFixed(2)}°E`;
+          windEl.textContent = `${wp.wind_kmh} km/h`;
+          surgeEl.textContent = 'Calculated via Rankine vortex';
+          rainEl.textContent = 'Calculated via translation speed';
+          sumEl.textContent = 'Telemetry observation point on trajectory.';
+        }
+      }
 
-      // Add overlay controls
-      const overlayMaps = {
-        "🔴 Canonical Observed Track": canonicalObservedLayer,
-        "🟣 CYCLONEX AI Prediction": aiForecastLayer,
-        "🔷 AI 24h Uncertainty Cone": aiUncertaintyLayer,
-        "🟠 Official RSMC Forecast (External Ref)": officialForecastLayer,
-        "🌪️ IMD Wind Warning Zones": imdWindLayer
-      };
-      L.control.layers(null, overlayMaps, { position: 'topright' }).addTo(map);
-
-      // Track request sequencing and state
-      let currentTrackRequestId = 0;
-      let activeCycloneKey = '';
-      let activeFusedData = null;
-      let rawImdWindData = null;
-
-      // 2. Click-to-probe real Open-Meteo endpoint
+      // Click-to-probe real Open-Meteo & Cyclonex Impact endpoint
       map.on('click', async (e) => {
-        const lat = e.latlng.lat.toFixed(2);
-        const lon = e.latlng.lng.toFixed(2);
+        const lat = parseFloat(e.latlng.lat.toFixed(2));
+        const lon = parseFloat(e.latlng.lng.toFixed(2));
         const box = document.getElementById('weatherAtPointBox');
-        box.innerHTML = `<span style="color:var(--sky-blue);">PROBING ATMOSPHERE:</span> (${lat}°N, ${lon}°E)...`;
+        box.innerHTML = `<span style="color:var(--sky-blue);">PROBING POINT & DAMAGE:</span> (${lat}°N, ${lon}°E)...`;
 
         try {
-          const res = await fetch(`${API_BASE}/weather?lat=${lat}&lon=${lon}`);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
-          const curr = data.current;
-          box.innerHTML = `<span style="color:var(--accent-cyan); font-weight:700;">OPEN-METEO:</span> Wind: ${curr.wind_speed_10m} km/h • Pres: ${curr.pressure_msl} hPa • Gust: ${curr.wind_gusts_10m} km/h`;
-          
+          const [weatherRes, impactRes] = await Promise.all([
+            fetch(`${API_BASE}/weather?lat=${lat}&lon=${lon}`),
+            fetch(`${API_BASE}/api/track/probe-impact?lat=${lat}&lon=${lon}&storm_key=${encodeURIComponent(currentStormKey)}`)
+          ]);
+
+          let curr = {};
+          if (weatherRes.ok) {
+            const wData = await weatherRes.json();
+            curr = wData.current || {};
+          }
+
+          let probeImp = null;
+          if (impactRes.ok) {
+            probeImp = await impactRes.json();
+          }
+
+          box.innerHTML = `<span style="color:var(--accent-cyan); font-weight:700;">PROBE:</span> Wind: ${curr.wind_speed_10m || '--'} km/h • Pres: ${curr.pressure_msl || '--'} hPa • Dist: ${probeImp ? probeImp.distance_from_cyclone_center_km.toFixed(1) + ' km' : '--'}`;
+
+          if (probeImp && probeImp.waypoint_impact_summary) {
+            // Update the main impact card to reflect this probe
+            const mockWp = {
+              label: `PROBED LOCATION (${lat}°N, ${lon}°E)`,
+              time: `Distance to Center: ${probeImp.distance_from_cyclone_center_km.toFixed(1)} km`,
+              lead_hours: probeImp.nearest_predicted_waypoint.lead_hours,
+              latitude: lat,
+              longitude: lon,
+              wind_kmh: probeImp.estimated_local_wind_kmh,
+              impact_assessment: probeImp.waypoint_impact_summary
+            };
+            updateImpactPanel(mockWp, probeImp.cyclone_system);
+          }
+
           L.popup().setLatLng(e.latlng).setContent(`
             <div style="font-family:Inter,sans-serif; font-size:12px; line-height:1.5;">
-              <b style="color:#071D33; font-size:13px;">Open-Meteo Atmospheric Probe</b><br>
+              <b style="color:#071D33; font-size:13px;">CYCLONEX Impact & Weather Probe</b><br>
               <b>Coordinates:</b> ${lat}°N, ${lon}°E<br>
-              <b>10m Wind Speed:</b> ${curr.wind_speed_10m} km/h<br>
-              <b>Peak Gusts:</b> ${curr.wind_gusts_10m} km/h<br>
-              <b>MSL Pressure:</b> ${curr.pressure_msl} hPa<br>
-              <b>Precipitation:</b> ${curr.precipitation} mm<br>
-              <span style="font-size:10px; color:#555;">Observation Time: ${curr.time} UTC</span>
+              <b>Distance to Center:</b> ${probeImp ? probeImp.distance_from_cyclone_center_km.toFixed(1) + ' km' : 'N/A'}<br>
+              <b>Local Cyclone Wind:</b> ${probeImp ? probeImp.estimated_local_wind_kmh + ' km/h' : '--'}<br>
+              <b>Open-Meteo Wind:</b> ${curr.wind_speed_10m || '--'} km/h<br>
+              <b>MSL Pressure:</b> ${curr.pressure_msl || '--'} hPa<br>
+              <span style="font-size:10px; color:#555;">Hover any circle waypoint for time horizon damage analysis</span>
             </div>
           `).openOn(map);
         } catch (err) {
-          box.innerHTML = `<span style="color:#ff8888;">PROBE FAILED:</span> Unable to reach Open-Meteo for (${lat}, ${lon})`;
+          box.innerHTML = `<span style="color:#ff8888;">PROBE FAILED:</span> Unable to calculate damage for (${lat}, ${lon})`;
         }
       });
 
-      // Clear all cyclone layers before rendering a new selection
-      function clearAllCycloneLayers() {
-        canonicalObservedLayer.clearLayers();
-        aiForecastLayer.clearLayers();
-        aiUncertaintyLayer.clearLayers();
-        officialForecastLayer.clearLayers();
-        imdWindLayer.clearLayers();
-        map.closePopup();
-      }
-
-      // Category color mapping
-      function getCategoryColor(category) {
-        const c = (category || '').toUpperCase();
-        if (c.includes('SUPER')) return '#a855f7';
-        if (c.includes('EXTREMELY SEVERE')) return '#ef4444';
-        if (c.includes('VERY SEVERE')) return '#ff4d4d';
-        if (c.includes('SEVERE')) return '#ff8566';
-        if (c.includes('CYCLONIC')) return '#ffdd57';
-        if (c.includes('DEEP DEPRESSION')) return '#38bdf8';
-        return '#65BDD1';
-      }
-
-      // =======================================================================
-      // CORE: FETCH AND RENDER AUTHORITATIVE FUSED CYCLONE TRACK
-      // Enforces exactly ONE observed track & ONE primary CYCLONEX AI forecast
-      // =======================================================================
-      async function loadAndRenderFusedTrack(cycloneKey) {
-        if (!cycloneKey || cycloneKey === 'LIVE_SURVEILLANCE') {
-          cycloneKey = localStorage.getItem('cyclonex_active_storm') || 'REMAL_2024';
-          if (cycloneKey === 'LIVE_SURVEILLANCE') cycloneKey = 'REMAL_2024';
-        }
-
-        const thisReqId = ++currentTrackRequestId;
-        activeCycloneKey = cycloneKey;
-
-        // Immediately clear obsolete layers to avoid ghost features or race conditions
-        clearAllCycloneLayers();
-
-        const titleEl = document.getElementById('activeStormTitle');
-        const badgeEl = document.getElementById('fusionFreshnessBadge');
-        const obsBadge = document.getElementById('obsCountBadge');
-        const fcstBadge = document.getElementById('fcstCountBadge');
-        const obsList = document.getElementById('obsListContainer');
-        const fcstList = document.getElementById('fcstListContainer');
-        const auditBox = document.getElementById('reconciliationAuditDetails');
-
-        titleEl.textContent = `RECONCILING ${cycloneKey.replace('_', ' ')}...`;
-        badgeEl.textContent = 'FUSING MULTI-SOURCE DATA';
-        obsBadge.textContent = 'Reconciling...';
-        fcstBadge.textContent = 'Predicting...';
-        obsList.innerHTML = '<span style="color:var(--mist);">Reconciling multi-source chronological track...</span>';
-        fcstList.innerHTML = '<span style="color:var(--mist);">Generating spatiotemporal forecast...</span>';
-
-        let data = null;
+      // Load Authoritative Track Data from Backend
+      async function loadAuthoritativeTrack(stormKey) {
         try {
-          const res = await fetch(`${API_BASE}/api/track/fused/${encodeURIComponent(cycloneKey)}`);
+          const res = await fetch(`${API_BASE}/api/track/authoritative?storm_key=${encodeURIComponent(stormKey)}`);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          data = await res.json();
-        } catch (fetchErr) {
-          console.warn('[CYCLONEX] Backend fused API unreachable, using client-side reconciliation fallback:', fetchErr);
-          data = clientSideFallbackReconciliation(cycloneKey);
+          const data = await res.json();
+          currentTrackPayload = data;
+          renderAuthoritativeTracks(data);
+        } catch (err) {
+          console.error('Error loading authoritative track data:', err);
         }
+      }
 
-        // Prevent race condition: discard if user switched to another storm while fetching
-        if (thisReqId !== currentTrackRequestId) return;
-        if (!data || !data.canonical_observed_track) return;
+      function renderAuthoritativeTracks(data) {
+        predictedLayer.clearLayers();
+        actualTrackLayer.clearLayers();
 
-        activeFusedData = data;
+        document.getElementById('activeStormTitle').textContent = `${data.storm_name.toUpperCase()} (${data.year}) • ${data.agency}`;
 
-        // Update headers & badges
-        titleEl.textContent = `${data.cyclone_name.toUpperCase()} (${data.year || 2024}) • CANONICAL FUSED BEST-TRACK`;
-        badgeEl.textContent = `${(data.fused_sources && data.fused_sources.length) || 1} SOURCES FUSED • AUTHORITATIVE SINGLE TRACK`;
+        // 1. RENDER EXACTLY ONE PREDICTED PATH (Smooth continuous spline trajectory)
+        const predPoints = data.authoritative_predicted_path.trajectory || [];
+        const predCoords = predPoints.map(p => [p.latitude, p.longitude]);
 
-        const obsData = data.canonical_observed_track;
-        const waypoints = obsData.waypoints || [];
-        const segments = obsData.segments || [waypoints];
-        const gaps = obsData.gaps || [];
-
-        obsBadge.textContent = `${waypoints.length} verified fixes (${segments.length} segment${segments.length > 1 ? 's' : ''})`;
-        obsList.innerHTML = '';
-
-        // 1. Render exactly ONE observed trajectory geometry (split cleanly across gaps)
-        let allObsCoords = [];
-
-        segments.forEach((seg, sIdx) => {
-          if (!seg || seg.length === 0) return;
-          const segCoords = seg.map(p => [p.lat, p.lon]);
-          allObsCoords = allObsCoords.concat(segCoords);
-
-          // Draw continuous segment polyline
-          L.polyline(segCoords, {
+        if (predCoords.length > 0) {
+          // Single continuous predicted polyline
+          const predPoly = L.polyline(predCoords, {
             color: '#65BDD1',
             weight: 3.5,
-            opacity: 0.95
-          }).addTo(canonicalObservedLayer);
-        });
-
-        // 2. Render visible gap indicators if large time gap (>18h) exists
-        if (obsData.has_gaps && gaps.length > 0) {
-          gaps.forEach(gap => {
-            const gapMarker = L.circleMarker(gap.to_coordinates, {
-              radius: 9,
-              color: '#f59e0b',
-              fillColor: 'rgba(245, 158, 11, 0.3)',
-              weight: 2,
-              dashArray: '3, 3'
-            }).addTo(canonicalObservedLayer);
-
-            gapMarker.bindTooltip(`
-              <div style="font-family:Inter,sans-serif; font-size:11px; line-height:1.4;">
-                <b style="color:#f59e0b;">⚠️ TEMPORAL DATA GAP (${gap.gap_hours}h)</b><br>
-                <b>From:</b> ${gap.from_time}<br>
-                <b>To:</b> ${gap.to_time}<br>
-                <b>Distance:</b> ${gap.distance_km} km<br>
-                <span style="font-size:9.5px; color:#ddd;">Single-track policy: Connecting line omitted across observation void.</span>
-              </div>
-            `);
-          });
-        }
-
-        // 3. Render genuine observation markers along the canonical track
-        waypoints.forEach((wp, idx) => {
-          const isLatest = (idx === waypoints.length - 1);
-          const catColor = getCategoryColor(wp.category);
-
-          const marker = L.circleMarker([wp.lat, wp.lon], {
-            radius: isLatest ? 8.5 : 4.5,
-            color: wp.conflict_flag ? '#f59e0b' : '#ffffff',
-            fillColor: catColor,
-            fillOpacity: 0.95,
-            weight: wp.conflict_flag ? 2.5 : (isLatest ? 2.5 : 1.5)
-          }).addTo(canonicalObservedLayer);
-
-          const conflictNotice = wp.conflict_flag ? `
-            <div style="margin-top:4px; padding:3px 6px; background:rgba(245,158,11,0.2); border-left:2px solid #f59e0b; font-size:10px;">
-              <b>⚠️ CONFLICT RESOLVED:</b> Spatial uncertainty ±${wp.uncertainty_radius_km} km.<br>
-              Priority assigned to <b>${wp.primary_source}</b>. Compromise coordinate averaging rejected.
-            </div>
-          ` : '';
-
-          marker.bindTooltip(`
-            <div style="font-family:Inter,sans-serif; font-size:11px; line-height:1.4;">
-              <b style="color:#65BDD1;">🔴 CANONICAL OBSERVED WAYPOINT</b><br>
-              <b>Time:</b> ${wp.time} (UTC)<br>
-              <b>Coordinates:</b> ${wp.lat.toFixed(2)}°N, ${wp.lon.toFixed(2)}°E<br>
-              <b>Category:</b> ${wp.category}<br>
-              <b>Wind:</b> ${wp.wind_kmh} km/h (${wp.wind_kt} kt) • <b>Pres:</b> ${wp.pressure_hpa} hPa<br>
-              <b>Authority:</b> <span style="color:#8FC4D8;">${wp.primary_source}</span>
-              ${conflictNotice}
-            </div>
-          `);
-
-          // Add item to timeline drawer
-          const item = document.createElement('div');
-          item.style.cssText = 'padding: 0.25rem 0.5rem; border-radius: 0.35rem; background: rgba(101,189,209,0.08); cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(143,196,216,0.1);';
-          if (wp.conflict_flag) item.style.borderColor = 'rgba(245,158,11,0.4)';
-
-          item.innerHTML = `
-            <div>
-              <b>${wp.time}</b> <span style="font-size:0.68rem; color:${catColor};">• ${wp.category}</span>
-              ${wp.conflict_flag ? '<span style="color:#f59e0b; font-size:0.65rem; margin-left:4px;">[CONFLICT RESOLVED]</span>' : ''}
-            </div>
-            <div style="display:flex; align-items:center; gap:0.4rem;">
-              <span style="color:#65BDD1; font-weight:600;">${wp.wind_kmh} km/h</span>
-              <span class="provenance-tag" style="font-size:0.55rem; padding:0.1rem 0.3rem;">${(wp.primary_source || 'IMD').split('/')[0].trim()}</span>
-            </div>
-          `;
-          item.onclick = () => { map.setView([wp.lat, wp.lon], 7); marker.openTooltip(); };
-          obsList.appendChild(item);
-        });
-
-        // 4. Render exactly ONE primary CYCLONEX AI forecast trajectory
-        fcstList.innerHTML = '';
-        const aiFcst = data.cyclonex_ai_forecast;
-
-        if (aiFcst && aiFcst.status === 'SUCCESS' && aiFcst.waypoints && aiFcst.waypoints.length > 0) {
-          fcstBadge.textContent = `${aiFcst.waypoints.length} lead horizons (+6h to +24h)`;
-          const lastObs = waypoints[waypoints.length - 1];
-
-          // Construct single continuous AI forecast line starting from latest observed fix
-          const fcstLineCoords = [[lastObs.lat, lastObs.lon]];
-          aiFcst.waypoints.forEach(p => fcstLineCoords.push([p.lat, p.lon]));
-
-          L.polyline(fcstLineCoords, {
-            color: '#c084fc',
-            weight: 2.8,
             dashArray: '6, 6',
             opacity: 0.95
-          }).addTo(aiForecastLayer);
+          }).addTo(predictedLayer);
 
-          aiFcst.waypoints.forEach(p => {
-            // Render forecast point marker
-            const fcstMarker = L.circleMarker([p.lat, p.lon], {
-              radius: 5.5,
-              color: '#ffffff',
-              fillColor: '#a855f7',
+          predPoints.forEach((p, idx) => {
+            const isInit = (idx === 0);
+            const isPrimary = p.is_primary_horizon || isInit;
+            
+            // Uncertainty error cone circle for forecast horizons (skip t0 and small intermediates)
+            if (!isInit && isPrimary && p.cone_radius_km > 0) {
+              L.circle([p.latitude, p.longitude], {
+                radius: p.cone_radius_km * 1000,
+                color: '#65BDD1',
+                fillColor: '#287CA8',
+                fillOpacity: 0.12,
+                weight: 1,
+                dashArray: '3, 4'
+              }).addTo(predictedLayer);
+            }
+
+            // Waypoint marker
+            const marker = L.circleMarker([p.latitude, p.longitude], {
+              radius: isInit ? 9 : (isPrimary ? 6.5 : 4.0),
+              color: isInit ? '#ffffff' : (isPrimary ? '#8FC4D8' : '#65BDD1'),
+              fillColor: isInit ? '#287CA8' : (isPrimary ? '#071D33' : '#143c5e'),
               fillOpacity: 0.95,
-              weight: 2
-            }).addTo(aiForecastLayer);
+              weight: isInit ? 2.8 : (isPrimary ? 2.0 : 1.2)
+            }).addTo(predictedLayer);
 
-            fcstMarker.bindTooltip(`
-              <div style="font-family:Inter,sans-serif; font-size:11px; line-height:1.4;">
-                <b style="color:#c084fc;">🟣 CYCLONEX AI FORECAST (+${p.lead_hours}h)</b><br>
-                <b>Valid Time:</b> ${p.forecast_initialization_time || 'Step +' + p.lead_hours + 'h'}<br>
-                <b>Coordinates:</b> ${p.lat.toFixed(2)}°N, ${p.lon.toFixed(2)}°E<br>
-                <b>Intensity:</b> ${p.wind_kmh} km/h • <b>Pres:</b> ${p.pressure_hpa} hPa<br>
-                <b>Error Envelope:</b> ±${p.cone_radius_km} km (1-sigma empirical)<br>
-                <span style="font-size:9.5px; color:#aaa;">Model: Kinematic Trajectory Extrapolation with Beta-Drift</span>
-              </div>
-            `);
+            const imp = p.impact_assessment;
+            const surgeTxt = (imp && imp.hazard_assessment && imp.hazard_assessment.storm_surge) ? `${imp.hazard_assessment.storm_surge.mean_surge_height_m}m` : 'N/A';
+            const rainTxt = (imp && imp.hazard_assessment && imp.hazard_assessment.rainfall_forecast) ? `${imp.hazard_assessment.rainfall_forecast.rainfall_24h_mm}mm` : 'N/A';
+            const popTxt = (imp && imp.exposure_and_vulnerability) ? imp.exposure_and_vulnerability.total_population_exposed.toLocaleString() : 'N/A';
 
-            // Render uncertainty cone error circle on dedicated separate uncertainty layer
-            L.circle([p.lat, p.lon], {
-              radius: p.cone_radius_km * 1000,
-              color: '#a855f7',
-              fillColor: '#7c3aed',
-              fillOpacity: 0.12,
-              weight: 1.2,
-              dashArray: '3, 4'
-            }).addTo(aiUncertaintyLayer);
-
-            // Add item to forecast timeline list
-            const item = document.createElement('div');
-            item.style.cssText = 'padding: 0.25rem 0.5rem; border-radius: 0.35rem; background: rgba(192,132,252,0.08); cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(192,132,252,0.15);';
-            item.innerHTML = `
-              <div>
-                <b>+${p.lead_hours}h Horizon</b> <span style="font-size:0.68rem; color:var(--mist);">(±${p.cone_radius_km} km cone)</span>
-              </div>
-              <div style="display:flex; align-items:center; gap:0.4rem;">
-                <span style="color:#c084fc; font-weight:600;">${p.wind_kmh} km/h</span>
-                <span style="color:var(--mist); font-size:0.68rem;">${p.pressure_hpa} hPa</span>
+            const tooltipHtml = `
+              <div style="font-family:Inter,sans-serif; font-size:11px; line-height:1.45; min-width:180px;">
+                <b style="color:${isInit ? '#8FC4D8' : '#65BDD1'};">${isInit ? '📍 FORECAST INITIALIZATION (t0)' : '🔵 ' + p.label}</b><br>
+                <b>System:</b> ${data.storm_name}<br>
+                <b>Time / Horizon:</b> ${p.time}<br>
+                <b>Position:</b> ${p.latitude.toFixed(2)}°N, ${p.longitude.toFixed(2)}°E<br>
+                <b>Wind:</b> ${p.wind_kmh} km/h • <b>Pressure:</b> ${p.pressure_hpa} hPa<br>
+                <b>Storm Surge:</b> ${surgeTxt} • <b>Rain:</b> ${rainTxt}<br>
+                <b>Exposed Population:</b> ${popTxt}<br>
+                <span style="font-size:9.5px; color:#aaa;">Click or hover to inspect full damage breakdown</span>
               </div>
             `;
-            item.onclick = () => { map.setView([p.lat, p.lon], 7); fcstMarker.openTooltip(); };
-            fcstList.appendChild(item);
+            marker.bindTooltip(tooltipHtml);
+
+            // Bind HOVER & CLICK events to update the Impact & Damage Panel
+            marker.on('mouseover', () => {
+              updateImpactPanel(p, data.storm_name);
+            });
+            marker.on('click', () => {
+              updateImpactPanel(p, data.storm_name);
+              map.setView([p.latitude, p.longitude], 7);
+            });
           });
 
-        } else {
-          fcstBadge.textContent = 'UNAVAILABLE';
-          const reasonMsg = (aiFcst && aiFcst.reason) || 'Insufficient observations sequence (minimum 2 chronological points required).';
-          fcstList.innerHTML = `<span style="color:#f59e0b; padding:0.4rem; display:block;">⚠️ <b>Prediction Unavailable:</b> ${reasonMsg}<br><span style="font-size:0.7rem; color:var(--mist);">Single-track rule: CYCLONEX never manufactures a fictitious prediction.</span></span>`;
+          // Set default impact panel to the first forward horizon (+6h)
+          const firstForward = predPoints.find(p => !p.is_initialization) || predPoints[0];
+          updateImpactPanel(firstForward, data.storm_name);
+
+          map.fitBounds(predPoly.getBounds(), { padding: [60, 60] });
         }
 
-        // 5. Render official external RSMC forecast (isolated on officialForecastLayer)
-        const offFcst = data.official_forecast;
-        if (offFcst && offFcst.available && offFcst.waypoints && offFcst.waypoints.length > 0) {
-          const offPts = offFcst.waypoints;
-          const offCoords = [];
-          if (waypoints.length > 0) {
-            const lastWp = waypoints[waypoints.length - 1];
-            offCoords.push([lastWp.lat, lastWp.lon]);
-          }
-          offPts.forEach(p => offCoords.push([p.latitude || p.lat, p.longitude || p.lon]));
+        // 2. BUILD ACTUAL HISTORICAL TRACK LAYER (Overlayed only when toggle active)
+        const actPoints = data.actual_historical_track.trajectory || [];
+        const actCoords = actPoints.map(p => [p.latitude, p.longitude]);
 
-          L.polyline(offCoords, {
-            color: '#ffaa00',
-            weight: 2.5,
-            dashArray: '5, 5',
+        if (actCoords.length > 0) {
+          L.polyline(actCoords, {
+            color: '#ff4d4d',
+            weight: 3.5,
             opacity: 0.95
-          }).addTo(officialForecastLayer);
+          }).addTo(actualTrackLayer);
 
-          offPts.forEach(p => {
-            const lat = p.latitude || p.lat;
-            const lon = p.longitude || p.lon;
-            const m = L.circleMarker([lat, lon], {
-              radius: 5,
+          actPoints.forEach((p, idx) => {
+            const marker = L.circleMarker([p.latitude, p.longitude], {
+              radius: idx === actPoints.length - 1 ? 8 : 4.5,
               color: '#ffffff',
-              fillColor: '#ffaa00',
-              fillOpacity: 0.9,
-              weight: 1.5
-            }).addTo(officialForecastLayer);
+              fillColor: '#ff3333',
+              fillOpacity: 0.95,
+              weight: 1.8
+            }).addTo(actualTrackLayer);
 
-            m.bindTooltip(`
+            const tooltipHtml = `
               <div style="font-family:Inter,sans-serif; font-size:11px; line-height:1.4;">
-                <b style="color:#ffaa00;">🟠 OFFICIAL RSMC FORECAST (EXTERNAL REFERENCE)</b><br>
-                <b>Agency:</b> ${offFcst.agency}<br>
-                <b>Lead Time:</b> ${p.date_time || 'Hour ' + p.hour}<br>
-                <b>Coordinates:</b> ${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E<br>
-                <b>Category:</b> ${p.category}<br>
-                <b>Mean MSW:</b> ${p.mean_msw_kmph || '--'} km/h (${p.msw_kt || '--'} kt)<br>
-                <span style="font-size:9.5px; color:#aaa;">Maintained as an independent visual reference layer.</span>
+                <b style="color:#d9534f;">🔴 VERIFIED HISTORICAL OBSERVATION</b><br>
+                <b>Time:</b> ${p.time}<br>
+                <b>Position:</b> ${p.latitude.toFixed(2)}°N, ${p.longitude.toFixed(2)}°E<br>
+                <b>Wind:</b> ${p.wind_kmh} km/h (${p.wind_kt} kt) • <b>Pressure:</b> ${p.pressure_hpa} hPa<br>
+                <span style="font-size:9.5px; color:#aaa;">Source: ${data.actual_historical_track.source}</span>
               </div>
-            `);
+            `;
+            marker.bindTooltip(tooltipHtml);
           });
         }
 
-        // 6. Update Timeline Scrubber
-        const sc = document.getElementById('pageScrubber');
-        const scTime = document.getElementById('pageScrubberTime');
-        if (waypoints.length > 0) {
-          sc.max = waypoints.length - 1;
-          sc.value = waypoints.length - 1;
-          const activeWp = waypoints[waypoints.length - 1];
-          scTime.textContent = `${activeWp.time} (${activeWp.wind_kmh} km/h, ${activeWp.pressure_hpa} hPa)`;
+        // 3. POPULATE VALIDATION METRICS & ERROR STATS
+        const metrics = data.validation_metrics || {};
+        const initMeta = data.forecast_initialization || {};
 
-          sc.oninput = (e) => {
-            const i = parseInt(e.target.value, 10);
-            const w = waypoints[i];
-            if (w) {
-              scTime.textContent = `${w.time} • ${w.category} (${w.wind_kmh} km/h, ${w.pressure_hpa} hPa)`;
-              map.panTo([w.lat, w.lon]);
-            }
-          };
-        }
+        document.getElementById('valInitTime').textContent = initMeta.timestamp || '--';
+        document.getElementById('valMeanError').textContent = metrics.mean_track_error_km ? `${metrics.mean_track_error_km} km` : 'N/A';
 
-        // 7. Update Multi-Source Reconciliation Audit Panel
-        const summary = data.reconciliation_summary || {};
-        document.getElementById('auditDedupeTag').innerHTML = `Deduplicated: <b style="color:var(--accent-cyan);">${summary.deduplicated_count || 0} fixes</b>`;
-        document.getElementById('auditConflictsTag').innerHTML = `Conflicts Resolved: <b style="color:#ffaa00;">${summary.conflicts_resolved || 0}</b>`;
-        document.getElementById('auditContinuityTag').innerHTML = `Continuity: <b style="color:#4ade80;">${segments.length} segment${segments.length > 1 ? 's' : ''} (${gaps.length} gap${gaps.length > 1 ? 's' : ''})</b>`;
+        const leadErrors = metrics.lead_time_errors || [];
+        const findLead = (h) => leadErrors.find(e => e.lead_hours === h);
 
-        auditBox.innerHTML = `
-          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem;">
-            <div>
-              <b style="color:var(--ice);">Ingestion & Normalization:</b><br>
-              • Ingested raw observations: <b>${summary.raw_records_ingested || summary.raw_records_count || waypoints.length}</b><br>
-              • Authoritative canonical track fixes: <b>${waypoints.length}</b><br>
-              • Multi-source co-temporal deduplications: <b>${summary.deduplicated_count || 0}</b>
-            </div>
-            <div>
-              <b style="color:var(--ice);">Conflict Policy (Source Hierarchy):</b><br>
-              • Documented priority applied: <b>RSMC / IMD > Best-Track > Satellite > Soundings</b><br>
-              • Rule enforced: <b>Compromise position averaging strictly prohibited</b>.<br>
-              • Provenance retained for all candidate sources.
-            </div>
-            <div>
-              <b style="color:var(--ice);">Trajectory Invariants:</b><br>
-              • <b>Exactly 1 observed trajectory</b> rendered on GIS workstation.<br>
-              • <b>Exactly 1 primary AI forecast trajectory</b> (${aiFcst ? aiFcst.status : 'N/A'}).<br>
-              • Uncertainty envelope isolated to dedicated toggleable layer.
-            </div>
-          </div>
+        const l6 = findLead(6);
+        const l12 = findLead(12);
+        const l24 = findLead(24);
+
+        document.getElementById('valLead6h').textContent = (l6 && l6.displacement_error_km !== null) ? `${l6.displacement_error_km} km` : 'Outside Window';
+        document.getElementById('valLead12h').textContent = (l12 && l12.displacement_error_km !== null) ? `${l12.displacement_error_km} km` : 'Outside Window';
+        document.getElementById('valLead24h').textContent = (l24 && l24.displacement_error_km !== null) ? `${l24.displacement_error_km} km` : 'Outside Window';
+
+        document.getElementById('valExplanationText').textContent = `
+          Model initialized strictly at ${initMeta.timestamp} (${initMeta.coordinates[0]}°N, ${initMeta.coordinates[1]}°E) with zero future data leakage. Evaluated against ${actPoints.length} verified observations. Measured Mean Track Error: ${metrics.mean_track_error_km || 'N/A'} km.
         `;
 
-        // 8. Auto-fit bounds
-        if (allObsCoords.length > 0) {
-          const poly = L.polyline(allObsCoords);
-          map.fitBounds(poly.getBounds(), { padding: [40, 40] });
-        }
+        // 4. POPULATE WAYPOINT LISTS IN DRAWER
+        document.getElementById('imdFcstCountBadge').textContent = `${predPoints.length - 1} forecast horizons`;
+        document.getElementById('imdObsCountBadge').textContent = `${actPoints.length} verified observations`;
 
-        // Render wind warnings
-        fetchAndRenderImdWindWarnings();
-      }
+        const predContainer = document.getElementById('predictedListContainer');
+        const actContainer = document.getElementById('actualObsListContainer');
+        predContainer.innerHTML = '';
+        actContainer.innerHTML = '';
 
-      // Client-side fallback if server API is temporarily unavailable
-      function clientSideFallbackReconciliation(stormKey) {
-        const dataset = window.CYCLONEX_DATASET || {};
-        const storm = dataset[stormKey] || dataset['REMAL_2024'] || Object.values(dataset)[0];
-        if (!storm) return null;
+        predPoints.forEach((p, idx) => {
+          const item = document.createElement('div');
+          item.style.cssText = 'padding: 0.25rem 0.5rem; border-radius: 0.3rem; background: rgba(101,189,209,0.12); cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+          item.innerHTML = `<span><b>${p.label}</b> • ${p.time}</span><span style="color:#65BDD1;">${p.wind_kmh} km/h • ${p.pressure_hpa} hPa</span>`;
+          item.onclick = () => { map.setView([p.latitude, p.longitude], 7); };
+          predContainer.appendChild(item);
+        });
 
-        const records = storm.records || [];
-        const waypoints = records.map((r, i) => ({
-          waypoint_id: `WP-${stormKey}-${i}`,
-          epoch: i * 21600,
-          time: r.time,
-          lat: r.lat,
-          lon: r.lon,
-          wind_kmh: r.wind_kmh,
-          wind_kt: r.wind_knots || Math.round(r.wind_kmh / 1.852),
-          pressure_hpa: r.pressure_hpa,
-          category: r.stage || 'CYCLONIC STORM',
-          primary_source: storm.agency || 'Best-Track Archive',
-          qc_status: 'QC_PASSED_VERIFIED',
-          conflict_flag: false,
-          uncertainty_radius_km: 15.0
-        }));
+        actPoints.forEach(p => {
+          const item = document.createElement('div');
+          item.style.cssText = 'padding: 0.25rem 0.5rem; border-radius: 0.3rem; background: rgba(255,77,77,0.1); cursor: pointer; display: flex; justify-content: space-between; align-items: center;';
+          item.innerHTML = `<span><b>${p.time}</b> • (${p.latitude}°N, ${p.longitude}°E)</span><span style="color:#ff8888;">${p.wind_kmh} km/h</span>`;
+          item.onclick = () => { map.setView([p.latitude, p.longitude], 7); };
+          actContainer.appendChild(item);
+        });
 
-        const fcstPts = (storm.forecast || []).map(f => ({
-          step: f.step || 1,
-          lead_hours: f.lead_hours,
-          lat: f.lat,
-          lon: f.lon,
-          wind_kmh: f.wind_kmh,
-          pressure_hpa: f.pressure_hpa,
-          cone_radius_km: f.cone_radius_km,
-          forecast_initialization_time: waypoints[waypoints.length - 1] ? waypoints[waypoints.length - 1].time : ''
-        }));
-
-        return {
-          status: 'SUCCESS',
-          cyclone_id: stormKey,
-          cyclone_name: storm.name,
-          year: storm.year,
-          basin: storm.basin,
-          track_version: 'v2.4-client-reconciled',
-          fused_sources: [storm.agency || 'Authoritative Archive'],
-          canonical_observed_track: {
-            count: waypoints.length,
-            segments_count: 1,
-            segments: [waypoints],
-            waypoints: waypoints,
-            has_gaps: false,
-            gaps: []
-          },
-          cyclonex_ai_forecast: {
-            status: fcstPts.length > 0 ? 'SUCCESS' : 'UNAVAILABLE',
-            waypoints: fcstPts,
-            uncertainty_cone: fcstPts.map(p => ({ lead_hours: p.lead_hours, lat: p.lat, lon: p.lon, cone_radius_km: p.cone_radius_km }))
-          },
-          official_forecast: { available: false, waypoints: [] },
-          reconciliation_summary: {
-            raw_records_ingested: waypoints.length,
-            deduplicated_count: 0,
-            conflicts_resolved: 0
+        // Setup scrubber
+        const sc = document.getElementById('pageScrubber');
+        const scTime = document.getElementById('pageScrubberTime');
+        sc.max = predPoints.length - 1;
+        sc.value = 0;
+        scTime.textContent = predPoints[0].label;
+        sc.oninput = (e) => {
+          const idx = parseInt(e.target.value, 10);
+          const p = predPoints[idx];
+          if (p) {
+            scTime.textContent = `${p.label} (${p.wind_kmh} km/h, ${p.pressure_hpa} hPa)`;
+            map.panTo([p.latitude, p.longitude]);
           }
         };
       }
 
-      // Fetch official wind warning zones
-      async function fetchAndRenderImdWindWarnings() {
-        try {
-          const res = await fetch(`${API_BASE}/api/imd/cyclone-wind`);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          rawImdWindData = await res.json();
-          renderFilteredWindLayers();
-        } catch (err) {
-          console.warn('[CYCLONEX] IMD wind warnings not available:', err);
-        }
-      }
+      // Initial load
+      loadAuthoritativeTrack(currentStormKey);
 
-      function renderFilteredWindLayers() {
-        if (!rawImdWindData || !rawImdWindData.features) return;
-        imdWindLayer.clearLayers();
-
-        const activeT = {
-          '27kt': document.getElementById('chkWind27').checked,
-          '34kt': document.getElementById('chkWind34').checked,
-          '50kt': document.getElementById('chkWind50').checked,
-          '64kt': document.getElementById('chkWind64').checked
-        };
-
-        const filteredFeatures = rawImdWindData.features.filter(f => {
-          const k = (f.properties && f.properties.threshold_key) || '34kt';
-          return activeT[k] !== false;
-        });
-
-        if (filteredFeatures.length > 0) {
-          L.geoJSON({ type: 'FeatureCollection', features: filteredFeatures }, {
-            style: (feature) => {
-              const p = feature.properties || {};
-              return {
-                color: p.color || '#ff8800',
-                weight: 1.8,
-                fillColor: p.fillColor || '#ff8800',
-                fillOpacity: p.fillOpacity || 0.22
-              };
-            },
-            onEachFeature: (feature, layer) => {
-              const p = feature.properties || {};
-              layer.bindTooltip(`
-                <div style="font-family:Inter,sans-serif; font-size:11px;">
-                  <b style="color:${p.color || '#ff8800'};">🌪️ ${p.threshold_label || 'IMD Wind Warning'}</b><br>
-                  <b>Cyclone:</b> ${p.cyclone_name}<br>
-                  <b>Bulletin Time:</b> ${p.bulletin_time}<br>
-                  <span style="font-size:9.5px; color:#aaa;">Official IMD marine gale warning boundary</span>
-                </div>
-              `);
-            }
-          }).addTo(imdWindLayer);
-        }
-      }
-
-      // Layer Toggles Handlers
-      function setupLayerToggles() {
-        const bindToggle = (chkId, chipId, layerGroup) => {
-          const chk = document.getElementById(chkId);
-          const chip = document.getElementById(chipId);
-          if (!chk || !chip) return;
-          chk.addEventListener('change', () => {
-            if (chk.checked) {
-              map.addLayer(layerGroup);
-              chip.classList.add('active');
-            } else {
-              map.removeLayer(layerGroup);
-              chip.classList.remove('active');
-            }
-          });
-        };
-
-        bindToggle('chkCanonicalObserved', 'chipCanonicalObserved', canonicalObservedLayer);
-        bindToggle('chkAiForecast', 'chipAiForecast', aiForecastLayer);
-        bindToggle('chkAiUncertainty', 'chipAiUncertainty', aiUncertaintyLayer);
-        bindToggle('chkOfficialForecast', 'chipOfficialForecast', officialForecastLayer);
-        bindToggle('chkImdWind', 'chipImdWind', imdWindLayer);
-
-        // Uncertainty Cone Quick Button
-        let coneOn = true;
-        const toggleConeBtn = document.getElementById('toggleForecastConeBtn');
-        if (toggleConeBtn) {
-          toggleConeBtn.addEventListener('click', () => {
-            coneOn = !coneOn;
-            const chk = document.getElementById('chkAiUncertainty');
-            const chip = document.getElementById('chipAiUncertainty');
-            if (chk) chk.checked = coneOn;
-            if (chip) chip.classList.toggle('active', coneOn);
-            if (coneOn) map.addLayer(aiUncertaintyLayer);
-            else map.removeLayer(aiUncertaintyLayer);
-          });
-        }
-
-        ['chkWind27', 'chkWind34', 'chkWind50', 'chkWind64'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.addEventListener('change', (e) => {
-              const chip = e.target.closest('.imd-layer-toggle-chip');
-              if (chip) chip.classList.toggle('active', e.target.checked);
-              renderFilteredWindLayers();
-            });
-          }
-        });
-
-        const btnRefresh = document.getElementById('btnRefreshTrackData');
-        if (btnRefresh) {
-          btnRefresh.addEventListener('click', async () => {
-            btnRefresh.textContent = 'RECONCILING...';
-            btnRefresh.disabled = true;
-            await loadAndRenderFusedTrack(activeCycloneKey);
-            btnRefresh.textContent = 'SYNC / RECONCILE DATA';
-            btnRefresh.disabled = false;
-          });
-        }
-      }
-
-      setupLayerToggles();
-
-      // Invalidation & Auto-resize to ensure Leaflet renders properly
-      setTimeout(() => { map.invalidateSize(); }, 200);
-      setTimeout(() => { map.invalidateSize(); }, 600);
-      window.addEventListener('resize', () => { map.invalidateSize(); });
-
-      // Robust Storm Selection Handling
-      function getInitialStormKey() {
-        if (window.CYCLONEX && window.CYCLONEX.selectedStormKey && window.CYCLONEX.selectedStormKey !== 'LIVE_SURVEILLANCE') {
-          return window.CYCLONEX.selectedStormKey;
-        }
-        const key = localStorage.getItem('cyclonex_active_storm') || 'REMAL_2024';
-        return (key === 'LIVE_SURVEILLANCE') ? 'REMAL_2024' : key;
-      }
-
-      const initialKey = getInitialStormKey();
-      loadAndRenderFusedTrack(initialKey);
-
-      // Listen to storm changes dispatched across workstations
+      // Reactive update on storm change
       window.addEventListener('cyclonex:stormChanged', (e) => {
-        const newKey = e.detail.key;
-        loadAndRenderFusedTrack(newKey);
-        map.invalidateSize();
+        const k = e.detail.key === 'LIVE_SURVEILLANCE' ? 'REMAL_2024' : e.detail.key;
+        currentStormKey = k;
+        loadAuthoritativeTrack(k);
+        setTimeout(() => { map.invalidateSize(); }, 200);
       });
+
+      setTimeout(() => { map.invalidateSize(); }, 300);
+      window.addEventListener('resize', () => { map.invalidateSize(); });
     });
   </script>
 </body>
 </html>
-
