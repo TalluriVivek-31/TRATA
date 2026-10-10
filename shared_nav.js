@@ -43,17 +43,9 @@
       role: "OPERATIONAL_METEOROLOGIST"
     };
     sessionStorage.setItem('cyclonex_user', JSON.stringify(authUser));
-  } else if (authUser && isLoginPage) {
-    const savedRedirect = sessionStorage.getItem('cyclonex_redirect');
-    sessionStorage.removeItem('cyclonex_redirect');
-    const isLoginDest = savedRedirect && savedRedirect.includes('login');
-    if (savedRedirect && !isLoginDest) {
-      window.location.replace(savedRedirect);
-      return;
-    }
   }
 
-  // 8 Primary Operational Navigation Modules (Portal Login strictly excluded from nav bar)
+  // Primary Operational Navigation Modules
   const PAGES = [
     { title: 'Overview', path: 'index.html', href: 'index.html' },
     { title: 'Detection', path: 'detection.html', href: 'detection.html' },
@@ -62,7 +54,8 @@
     { title: 'Intensity', path: 'intensity.html', href: 'intensity.html' },
     { title: 'Explorer', path: 'data-explorer.html', href: 'data-explorer.html', fullTitle: 'Data Explorer' },
     { title: 'Model Lab', path: 'model-lab.html', href: 'model-lab.html' },
-    { title: 'System', path: 'system.html', href: 'system.html' }
+    { title: 'System', path: 'system.html', href: 'system.html' },
+    { title: 'Login', path: 'login.html', href: 'login.html', fullTitle: 'Operator Login' }
   ];
 
   function renderSharedHeader() {
