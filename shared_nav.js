@@ -21,7 +21,7 @@
   const currentPath = window.location.pathname.toLowerCase();
   const rawFile = currentPath.split('/').pop() || 'index.html';
   const currentBase = rawFile.replace(/\.html$/, '');
-  const isLoginPage = currentBase === 'login' || currentPath === '/login' || currentPath.endsWith('/login');
+  const isLoginPage = currentBase === 'login' || currentPath.includes('login');
   const rawUser = sessionStorage.getItem('cyclonex_user');
   let authUser = null;
   try {
@@ -30,15 +30,13 @@
     sessionStorage.removeItem('cyclonex_user');
   }
 
-  // Determine appropriate target format (clean URLs on Vercel vs .html on file/standalone)
-  const isCleanUrlMode = !window.location.pathname.endsWith('.html') && window.location.protocol !== 'file:';
-  const loginTarget = isCleanUrlMode ? 'login' : 'login.html';
-  const homeTarget = isCleanUrlMode ? '/' : 'index.html';
+  const loginTarget = 'login.html';
+  const homeTarget = 'index.html';
 
   if (!authUser && !isLoginPage) {
     // Preserve intended destination URL (strictly exclude login itself to avoid loops)
     const destination = window.location.href;
-    if (!destination.includes('/login') && !destination.includes('login.html')) {
+    if (!destination.includes('login')) {
       sessionStorage.setItem('cyclonex_redirect', destination);
     }
     window.location.replace(loginTarget);
@@ -47,7 +45,7 @@
     // If authenticated user visits login, direct to preserved destination or overview dashboard
     const savedRedirect = sessionStorage.getItem('cyclonex_redirect');
     sessionStorage.removeItem('cyclonex_redirect');
-    const isLoginDest = savedRedirect && (savedRedirect.includes('/login') || savedRedirect.includes('login.html'));
+    const isLoginDest = savedRedirect && savedRedirect.includes('login');
     window.location.replace((savedRedirect && !isLoginDest) ? savedRedirect : homeTarget);
     return;
   }

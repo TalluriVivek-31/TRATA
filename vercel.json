@@ -1,10 +1,41 @@
 {
   "version": 2,
-  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/overview",
       "destination": "/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/login.html"
+    },
+    {
+      "source": "/detection",
+      "destination": "/detection.html"
+    },
+    {
+      "source": "/classification",
+      "destination": "/classification.html"
+    },
+    {
+      "source": "/track",
+      "destination": "/track.html"
+    },
+    {
+      "source": "/intensity",
+      "destination": "/intensity.html"
+    },
+    {
+      "source": "/data-explorer",
+      "destination": "/data-explorer.html"
+    },
+    {
+      "source": "/model-lab",
+      "destination": "/model-lab.html"
+    },
+    {
+      "source": "/system",
+      "destination": "/system.html"
     },
     {
       "source": "/api/(.*)",
