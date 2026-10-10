@@ -355,7 +355,10 @@
         } catch (e) {}
         const savedRedirect = sessionStorage.getItem('cyclonex_redirect');
         sessionStorage.removeItem('cyclonex_redirect');
-        const target = (savedRedirect && !savedRedirect.includes('login.html')) ? savedRedirect : 'index.html';
+        const isLoginDest = savedRedirect && (savedRedirect.includes('/login') || savedRedirect.includes('login.html'));
+        const isCleanUrlMode = !window.location.pathname.endsWith('.html') && window.location.protocol !== 'file:';
+        const homeTarget = isCleanUrlMode ? '/' : 'index.html';
+        const target = (savedRedirect && !isLoginDest) ? savedRedirect : homeTarget;
         setTimeout(() => {
           window.location.replace(target);
         }, 800);

@@ -17,10 +17,11 @@
   };
 
   // Client-Side Session Auth Guard
-  // Redirect unauthenticated visitors attempting to view protected operational modules to login.html
-  const currentPath = window.location.pathname;
-  const currentFile = currentPath.split('/').pop() || 'index.html';
-  const isLoginPage = currentFile === 'login.html';
+  // Accurately recognizes both clean URLs (/login, /) and static file URLs (/login.html, index.html)
+  const currentPath = window.location.pathname.toLowerCase();
+  const rawFile = currentPath.split('/').pop() || 'index.html';
+  const currentBase = rawFile.replace(/\.html$/, '');
+  const isLoginPage = currentBase === 'login' || currentPath === '/login' || currentPath.endsWith('/login');
   const rawUser = sessionStorage.getItem('cyclonex_user');
   let authUser = null;
   try {
@@ -29,17 +30,25 @@
     sessionStorage.removeItem('cyclonex_user');
   }
 
+  // Determine appropriate target format (clean URLs on Vercel vs .html on file/standalone)
+  const isCleanUrlMode = !window.location.pathname.endsWith('.html') && window.location.protocol !== 'file:';
+  const loginTarget = isCleanUrlMode ? 'login' : 'login.html';
+  const homeTarget = isCleanUrlMode ? '/' : 'index.html';
+
   if (!authUser && !isLoginPage) {
-    // Preserve intended destination URL
+    // Preserve intended destination URL (strictly exclude login itself to avoid loops)
     const destination = window.location.href;
-    sessionStorage.setItem('cyclonex_redirect', destination);
-    window.location.replace('login.html');
+    if (!destination.includes('/login') && !destination.includes('login.html')) {
+      sessionStorage.setItem('cyclonex_redirect', destination);
+    }
+    window.location.replace(loginTarget);
     return;
   } else if (authUser && isLoginPage) {
-    // If authenticated user visits login, direct to overview dashboard
+    // If authenticated user visits login, direct to preserved destination or overview dashboard
     const savedRedirect = sessionStorage.getItem('cyclonex_redirect');
     sessionStorage.removeItem('cyclonex_redirect');
-    window.location.replace(savedRedirect && !savedRedirect.includes('login.html') ? savedRedirect : 'index.html');
+    const isLoginDest = savedRedirect && (savedRedirect.includes('/login') || savedRedirect.includes('login.html'));
+    window.location.replace((savedRedirect && !isLoginDest) ? savedRedirect : homeTarget);
     return;
   }
 
@@ -61,13 +70,15 @@
 
     // Desktop nav shows primary operational modules
     const desktopLinksHtml = PAGES.map(p => {
-      const isActive = currentFile === p.path || (currentFile === '' && p.path === 'index.html');
+      const pBase = p.path.replace(/\.html$/, '');
+      const isActive = currentBase === pBase || (currentBase === '' && pBase === 'index') || (currentBase === 'index' && pBase === 'index');
       return `<a href="${p.href}" class="nav-pill-link ${isActive ? 'active' : ''}">${p.title}</a>`;
     }).join('');
 
     // Drawer shows all links with full descriptive titles
     const drawerLinksHtml = PAGES.map(p => {
-      const isActive = currentFile === p.path || (currentFile === '' && p.path === 'index.html');
+      const pBase = p.path.replace(/\.html$/, '');
+      const isActive = currentBase === pBase || (currentBase === '' && pBase === 'index') || (currentBase === 'index' && pBase === 'index');
       return `<a href="${p.href}" class="nav-pill-link ${isActive ? 'active' : ''}">${p.fullTitle || p.title}</a>`;
     }).join('');
 
@@ -141,7 +152,7 @@
                   <div class="profile-user-clearance">Meteorological Clearance Required</div>
                 </div>
                 <div class="profile-menu-divider"></div>
-                <a href="login.html" id="btnProfileSignIn" class="profile-menu-item primary" role="menuitem">
+                <a href="${loginTarget}" id="btnProfileSignIn" class="profile-menu-item primary" role="menuitem">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
                     <polyline points="10 17 15 12 10 7"></polyline>
@@ -258,7 +269,7 @@
         }
         sessionStorage.removeItem('cyclonex_user');
         sessionStorage.removeItem('cyclonex_redirect');
-        window.location.replace('login.html');
+        window.location.replace(loginTarget);
       });
     }
   }

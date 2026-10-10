@@ -4,7 +4,7 @@
  * Primary Meteorological Identity Provider & Telemetry Engine
  */
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAnalytics, logEvent, isSupported } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-analytics.js";
 import { 
   getAuth, 
@@ -24,8 +24,8 @@ export const firebaseConfig = {
   measurementId: "G-H6BQBVJ39K"
 };
 
-// Initialize Firebase App
-export const app = initializeApp(firebaseConfig);
+// Initialize Firebase App idempotently (prevents duplicate app initialization across re-imports)
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
