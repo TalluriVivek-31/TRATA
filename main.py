@@ -7,12 +7,19 @@ Authoritative Multi-Source Meteorology, Open-Meteo Integration & ML Inference Ro
 import sys
 import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+# Set writable cache dir for matplotlib on serverless environments (Vercel / AWS Lambda)
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+
 user_site = os.path.expanduser(r"~\AppData\Roaming\Python\Python314\site-packages")
 if os.path.exists(user_site) and user_site not in sys.path:
     sys.path.append(user_site)
 
 # Load environment variables from .env
-_env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+_env_file = os.path.join(BASE_DIR, ".env")
 if os.path.exists(_env_file):
     with open(_env_file, "r", encoding="utf-8") as _ef:
         for _line in _ef:
